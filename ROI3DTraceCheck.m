@@ -14,13 +14,13 @@ for i = 1:ROI3DNum  % loop through the 3DROI table
 
     for j = 1:8  % loop through all the imaging planes
         tempFieldStr = append('Z',num2str(j-1));
-        tempValue = tempStruct.(tempFieldStr);
+        tempValue = cell2mat(tempStruct.(tempFieldStr));
         %tempCount = 0;                                  
         if ~isempty(tempValue)
             %tempCount = tempCount + 1;
             ROIRegisteredNumber(i) = ROIRegisteredNumber(i) + 1;  % if there are registered values
             hold on
-            plot(commonX,cell2mat(tempValue)+(80-j*10))
+            plot(commonX,tempValue(1:1000)+(80-j*10))
             legendStr{end+1} = tempFieldStr;
         end
     end
