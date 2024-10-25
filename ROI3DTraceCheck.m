@@ -11,17 +11,17 @@ for i = 1:ROI3DNum  % loop through the 3DROI table
     tempStruct = ROI3DWithTraceTable.registered_trace_session1(i);
     figure('units','normalized','outerposition',[0 0.5 0.5 0.5])    %show the new figure at left up corner
     legendStr = {};                                                 %pre assign the empty legend string
+    tempCount = 0;          %counter of the imaging planes with calcium trace
 
     for j = 1:8  % loop through all the imaging planes
         tempFieldStr = append('Z',num2str(j-1));
-        tempValue = cell2mat(tempStruct.(tempFieldStr));
-        %tempCount = 0;                                  
+        tempValue = cell2mat(tempStruct.(tempFieldStr));                                
         if ~isempty(tempValue)
-            %tempCount = tempCount + 1;
+            tempCount = tempCount + 1;
             ROIRegisteredNumber(i) = ROIRegisteredNumber(i) + 1;  % if there are registered values
             hold on
             plot(commonX,tempValue(1:1000)+(80-j*10))
-            legendStr{end+1} = tempFieldStr;
+            legendStr{end+1} = tempFieldStr;                      % add the legend string
         end
     end
     
@@ -31,35 +31,29 @@ for i = 1:ROI3DNum  % loop through the 3DROI table
     
     hold off
     
-    tempAnswer = questdlg('Is current cell registered?',...
-        titleStr,...
-        'Not registered', ...
-        '1 plane registered', ...
-        '>1 planes registered', ...
-        'Not registered');
-    
-    switch tempAnswer
-        case 'Not Registered'
-            ROIRegisteredStatus(i) = 0;       % 0: no registered
-        case '1 plane registered'
-            ROIRegisteredStatus(i) = 1;       % 1: only one registered plane
-        case '>1 planes registered'
-            tempAnswer2 = questdlg('matched or unmatched?', ...
-                                    titleStr, ...
-                                   'unmatched', ...
-                                   'partially matched', ...
-                                   'ALL MATCHED', ...
-                                   'unmatched');
+    if tempCount == 0
+        ROIRegisteredStatus(i) = 0;    %not registered to any planes
 
+    elseif tempCount == 1   
+        ROIRegisteredStatus(i) = 1;    %registered to one plane
+        
+    elseif tempCount >= 2
+        tempAnswer2 = questdlg('matched or unmatched?', ...
+                                titleStr, ...
+                                'unmatched', ...
+                                'partially matched', ...
+                                'ALL MATCHED', ...
+                                'unmatched');
             switch tempAnswer2
                 case 'unmatched'
-                    ROIRegisteredStatus(i) = 2;    %2: unmatched planes
+                    ROIRegisteredStatus(i) = 2;    %2: unmatched multiple planes
                 case 'partially matched'
                     ROIRegisteredStatus(i) = 3;    %3: partially matched planes
                 case 'ALL MATCHED'
                     ROIRegisteredStatus(i) = 4;    %4: all matched planes
             end
     end
+
     tempAnswer3 = questdlg('Move to the next ROI?', ...
                             'NEXT', ...
                             'Next ROI', ...
