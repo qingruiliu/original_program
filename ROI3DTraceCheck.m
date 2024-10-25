@@ -4,15 +4,15 @@ ROI3DNum = max(ROI3DWithTraceTable.ROI3DIdx);
 ROIRegisteredNumber = zeros(ROI3DNum,1);  % the matrix to save the registered status
 ROIRegisteredStatus = zeros(ROI3DNum,1);
 
-commonX = 1:5137;
+commonX = 1:1000;    %only plot the first 1000 frames
 
 for i = 1:ROI3DNum  % loop through the 3DROI table
     close(gcf)
     tempStruct = ROI3DWithTraceTable.registered_trace_session1(i);
-    figure('units','normalized','outerposition',[0 0 1 1])
-    
+    figure('units','normalized','outerposition',[0 0.5 0.5 0.5])    %show the new figure at left up corner
+    legendStr = {};                                                 %pre assign the empty legend string
+
     for j = 1:8  % loop through all the imaging planes
-        legendStr = {};
         tempFieldStr = append('Z',num2str(j-1));
         tempValue = tempStruct.(tempFieldStr);
         %tempCount = 0;                                  
@@ -23,10 +23,9 @@ for i = 1:ROI3DNum  % loop through the 3DROI table
             plot(commonX,cell2mat(tempValue)+(80-j*10))
             legendStr{end+1} = tempFieldStr;
         end
-        legend(legendStr,'FontSize',16);
     end
     
-
+    legend(legendStr,'FontSize',16);
     titleStr = append('#ROI ',num2str(i));
     title(titleStr,'FontSize',20);
     
