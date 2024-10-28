@@ -6,10 +6,10 @@ ROIRegisteredStatus = zeros(ROI3DNum,1);
 
 commonX = 1:1000;    %only plot the first 1000 frames
 
-for i = 1:ROI3DNum  % loop through the 3DROI table
+for i = 500:ROI3DNum  % loop through the 3DROI table
     close(gcf)
     tempStruct = ROI3DWithTraceTable.registered_trace_session1(i);
-    figure('units','normalized','outerposition',[0 0.5 0.5 0.5])    %show the new figure at left up corner
+    f = figure('units','normalized','outerposition',[0 0.5 0.5 0.5]);    %show the new figure at left up corner
     legendStr = {};                                                 %pre assign the empty legend string
     tempCount = 0;          %counter of the imaging planes with calcium trace
 
@@ -27,28 +27,34 @@ for i = 1:ROI3DNum  % loop through the 3DROI table
     
     %add the scale bar and change the info of axes
     xlabel('Time (s)');
+    xlim([0 1000]);
     ylabel('Deconv F (a.u.)');
+    ylim([-10 inf])
+
     timeScale = 20 * 2.2;     %scale bar of time: 10 seconds * frequency
-    ampScale  = 5;     %scale bar of amplitude: 5 a.u.
+    ampScale  = 10;     %scale bar of amplitude: 5 a.u.
 
     xPos = commonX(end) - timeScale - 5;  %start point of time scale
     yPos = ampScale;                      %amp scale start from 0
 
-    plot([xPos, xPos + timeScale],[yPos, yPos],'k','LineWidth',2);
-    text(xPos + timeScale/2, yPos - 2, [num2str(timeScale/2.2),' s'],...
+    plot([xPos, xPos + timeScale],[yPos-10, yPos-10],'k','LineWidth',1);
+    text(xPos + timeScale/2, yPos - 12, [num2str(timeScale/2.2),' s'],...
          'HorizontalAlignment','center');       %plot time scale bar
 
-    plot([xPos + timeScale, xPos + timeScale],[yPos, yPos + ampScale],'k','LineWidth',2);
-    text(xPos + timeScale + 2, yPos + ampScale/2,[num2str(ampScale),' a.u.'],...
-         'HorizontalAlignment','left','Rotation',90);
+    plot([xPos + timeScale, xPos + timeScale],[yPos - 10, yPos - 10 + ampScale],'k','LineWidth',1);
+    text(xPos + timeScale + 10, yPos - 10 + ampScale/2,[num2str(ampScale),' a.u.'],...
+         'HorizontalAlignment','center','Rotation',90);
     axis off
 
+
     legend(legendStr,'FontSize',16);
-    titleStr = append('#ROI ',num2str(i));
+    titleStr = append('ROI #',num2str(i));
     title(titleStr,'FontSize',20);
     
     hold off
-    
+
+    saveStr = append(titleStr,'.png');
+    saveas(f,saveStr)
     if tempCount == 0
         ROIRegisteredStatus(i) = 0;    %not registered to any planes
 
