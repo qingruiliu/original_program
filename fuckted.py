@@ -1,1 +1,0 @@
-#today we fuck ted together using python
