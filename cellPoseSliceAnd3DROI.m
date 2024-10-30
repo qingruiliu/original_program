@@ -12,7 +12,7 @@ roiLabels = unique(cellPoseVolume);
 roiLabels(roiLabels == 0) = [];
 
 %create a blank table of 3D ROIs
-%today we will fuck ted together
+
 
 tableTitle = {'ROI3DIdx','FP_3D','S1_registered','S2_registered','S3_registered'};
 tableTitleTypes = {'double','cell','struct','struct','struct'};
