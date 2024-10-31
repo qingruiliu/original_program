@@ -75,6 +75,10 @@ end
 
 %% 
 cellRegInput = permute(suite2pInput,[3 2 1]);
+
+%use the binary mask to run the cellReg 24.10.31
+cellRegInput = double(cellRegInput ~= 0);
+
 saveStr = append('cellRegInputZ',extractAfter(path,'Z'));
 saveStr = append(extractBefore(saveStr,'/'),'.mat');
 save(saveStr,"cellRegInput");
