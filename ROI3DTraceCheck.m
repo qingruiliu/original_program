@@ -47,7 +47,7 @@ for i = 88:ROI3DNum  % loop through the 3DROI table
     axis off
 
 
-    legend(legendStr,'FontSize',16);
+    legend(legendStr,'FontSize',12,'Location','best');       %avoid blocking the plotting area
     titleStr = append('ROI #',num2str(i));
     title(titleStr,'FontSize',20);
     
