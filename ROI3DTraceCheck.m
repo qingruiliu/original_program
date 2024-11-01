@@ -79,7 +79,7 @@ for i = 91:ROI3DNum  % loop through the 3DROI table
         
         [indx,tf] = listdlg('PromptString',{'Select the plane represent this 3D-ROI'},...
                             'ListString',legendStr,'SelectionMode','single',...
-                            'ListSize',[500 400]);     %use the fields with value to create a list dialog box
+                            'ListSize',[500 300]);     %use the fields with value to create a list dialog box
         
         if tf 
             ROI3DWithTraceTable.registered_trace_session2(i).selected = ROI3DWithTraceTable.registered_trace_session2(i).(legendStr{indx});
