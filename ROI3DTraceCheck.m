@@ -62,7 +62,7 @@ for i = 91:ROI3DNum  % loop through the 3DROI table
     saveas(f,saveStr)
     if tempCount == 0
         ROIRegisteredStatus(i) = 0;    %not registered to any planes
-        ROI3DWithTraceTable.sessionStr(i).selected = [];   %11.1 add the selected field to the struct,when segmentation, only use the .selected field
+        ROI3DWithTraceTable.(sessionStr)(i).selected = [];   %11.1 add the selected field to the struct,when segmentation, only use the .selected field
     elseif tempCount == 1   
         ROIRegisteredStatus(i) = 1;    %registered to one plane
         ROI3DWithTraceTable.(sessionStr)(i).selected = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{1});         %give the .selected field with the only field with value
