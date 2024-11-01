@@ -6,9 +6,9 @@ ROIRegisteredStatus = zeros(ROI3DNum,1);
 
 commonX = 1:1000;    %only plot the first 1000 frames
 
-for i = 500:ROI3DNum  % loop through the 3DROI table
+for i = 88:ROI3DNum  % loop through the 3DROI table
     close(gcf)
-    tempStruct = ROI3DWithTraceTable.registered_trace_session1(i);
+    tempStruct = ROI3DWithTraceTable.registered_trace_session2(i);       %check registered session2 trace 24.10.31
     f = figure('units','normalized','outerposition',[0 0.5 0.5 0.5]);    %show the new figure at left up corner
     legendStr = {};                                                 %pre assign the empty legend string
     tempCount = 0;          %counter of the imaging planes with calcium trace

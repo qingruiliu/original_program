@@ -142,7 +142,7 @@ for i = 1 : size(ROIIdxMat)
         tempTrace = suite2pTable.DeconvF(i);           %get the deconvoluted trace of 2P ROI
             
         depthLabel = extractAfter(twoPName,'t');       %current 2P plane label
-        ROI3DWithTraceTable.registered_trace_session1(tempIdx).(depthLabel) = tempTrace;
+        ROI3DWithTraceTable.registered_trace_session2(tempIdx).(depthLabel) = tempTrace;   %10.31 session2
     else
         mostNonZero(i) = 0;
     end
