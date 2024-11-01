@@ -87,7 +87,7 @@ for i = 91:ROI3DNum  % loop through the 3DROI table
                             'ListSize',[500 300]);     %use the fields with value to create a list dialog box
         
         if tf 
-            ROI3DWithTraceTable.(sessionStr)(i).selected = ROI3DWithTraceTable.sessionStr(i).(legendStr{indx});
+            ROI3DWithTraceTable.(sessionStr)(i).selected = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{indx});
         end
         
     end
