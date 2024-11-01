@@ -4,11 +4,16 @@ ROI3DNum = max(ROI3DWithTraceTable.ROI3DIdx);
 ROIRegisteredNumber = zeros(ROI3DNum,1);  % the matrix to save the registered status
 ROIRegisteredStatus = zeros(ROI3DNum,1);
 
+sessionNum = questdlg('Which session of data you want to check:','session check',...
+                                   'session1','session2','session3','session1');      %choose the session to check
+  
+sessionStr = append('registered_trace_',sessionNum);                                  %create the session string
+
 commonX = 1:1000;    %only plot the first 1000 frames
 
 for i = 91:ROI3DNum  % loop through the 3DROI table
     close(gcf)
-    tempStruct = ROI3DWithTraceTable.registered_trace_session2(i);       %check registered session2 trace 24.10.31
+    tempStruct = ROI3DWithTraceTable.(sessionStr)(i);       %check registered session2 trace 24.10.31
     f = figure('units','normalized','outerposition',[0 0.5 0.5 0.5]);    %show the new figure at left up corner
     legendStr = {};                                                 %pre assign the empty legend string
     tempCount = 0;          %counter of the imaging planes with calcium trace
@@ -57,10 +62,10 @@ for i = 91:ROI3DNum  % loop through the 3DROI table
     saveas(f,saveStr)
     if tempCount == 0
         ROIRegisteredStatus(i) = 0;    %not registered to any planes
-        ROI3DWithTraceTable.registered_trace_session2(i).selected = [];   %11.1 add the selected field to the struct,when segmentation, only use the .selected field
+        ROI3DWithTraceTable.sessionStr(i).selected = [];   %11.1 add the selected field to the struct,when segmentation, only use the .selected field
     elseif tempCount == 1   
         ROIRegisteredStatus(i) = 1;    %registered to one plane
-        ROI3DWithTraceTable.registered_trace_session2(i).selected = ROI3DWithTraceTable.registered_trace_session2(i).(legendStr{1});         %give the .selected field with the only field with value
+        ROI3DWithTraceTable.(sessionStr)(i).selected = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{1});         %give the .selected field with the only field with value
     elseif tempCount >= 2
         tempAnswer2 = questdlg('matched or unmatched?', ...
                                 titleStr, ...
@@ -82,7 +87,7 @@ for i = 91:ROI3DNum  % loop through the 3DROI table
                             'ListSize',[500 300]);     %use the fields with value to create a list dialog box
         
         if tf 
-            ROI3DWithTraceTable.registered_trace_session2(i).selected = ROI3DWithTraceTable.registered_trace_session2(i).(legendStr{indx});
+            ROI3DWithTraceTable.(sessionStr)(i).selected = ROI3DWithTraceTable.sessionStr(i).(legendStr{indx});
         end
         
     end
