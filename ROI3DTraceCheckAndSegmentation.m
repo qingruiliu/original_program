@@ -26,9 +26,17 @@ for i = 1:length(filename)
     %make each timestamp evenly spaced
     frameTime = (max(tempData)-tempData(1))/(length(tempData)-1);
     tempData = (tempData(1):frameTime:max(tempData))';
-    timeStampTable.(tempStampStr) = tempData;
+    timeStampTable.(tempStampStr) = tempData-tempData(1);
 end
 
+%% get the time difference from imaging start to behavioral program start
+timeDiff = totalTime - sum(mLatency(:));
+%change the matrix into the row-wise sum, and transpose into column vector
+lat = mLatency';
+lat = reshape(lat,[],1);
+lat = cumsum(lat);
+totalLatency = reshape(lat,[],160);
+totalLatency = totalLatency + timeDiff/2 + tempTimeLag;
 %% load the behavioral data 
 disp('---------select the behavioral data of current session-----------------');
 [bhfile,bhpath] = uigetfile('.mat','Select the behavioral data of current session');
@@ -95,7 +103,7 @@ for i = 91:ROI3DNum  % loop through the 3DROI table
         ROIRegisteredStatus(i) = 1;    %registered to one plane
         tempTrace = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{1});         %give the .selected field with the only field with value
 
-        ROI3DWithTraceTable.(sessionStr)(i).selected = selectedTraceSegment(tempTrace,legendStr{1});  %use the function to segment the selected trace
+        ROI3DWithTraceTable.(sessionStr)(i).selected = selectedTraceSegment(tempTrace,legendStr{1},tempTimeLag);  %use the function to segment the selected trace
     elseif tempCount >= 2
         tempAnswer2 = questdlg('matched or unmatched?', ...
                                 titleStr, ...
@@ -118,7 +126,7 @@ for i = 91:ROI3DNum  % loop through the 3DROI table
         
         if tf 
             tempTrace = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{indx});
-            ROI3DWithTraceTable.(sessionStr)(i).selected = selectedTraceSegment(tempTrace,legendStr{indx}); %use the function to segment the selected trace
+            ROI3DWithTraceTable.(sessionStr)(i).selected = selectedTraceSegment(tempTrace,legendStr{indx},tempTimeLag); %use the function to segment the selected trace
         end
         
     end
@@ -138,7 +146,9 @@ for i = 91:ROI3DNum  % loop through the 3DROI table
 end
 
 
-function segmentedTrace = selectedTraceSegment(trace,depth)
+function segmentedTrace = selectedTraceSegment(trace,depth,timelag)
 
+    
+    
 
 end
