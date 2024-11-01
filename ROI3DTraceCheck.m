@@ -57,10 +57,10 @@ for i = 88:ROI3DNum  % loop through the 3DROI table
     saveas(f,saveStr)
     if tempCount == 0
         ROIRegisteredStatus(i) = 0;    %not registered to any planes
-
+        ROI3DWithTraceTable.registered_trace_session2(i).selected = [];   %11.1 add the selected field to the struct,when segmentation, only use the .selected field
     elseif tempCount == 1   
         ROIRegisteredStatus(i) = 1;    %registered to one plane
-        
+        ROI3DWithTraceTable.registered_trace_session2(i).selected = [];
     elseif tempCount >= 2
         tempAnswer2 = questdlg('matched or unmatched?', ...
                                 titleStr, ...
