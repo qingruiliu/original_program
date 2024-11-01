@@ -6,7 +6,7 @@ ROIRegisteredStatus = zeros(ROI3DNum,1);
 
 commonX = 1:1000;    %only plot the first 1000 frames
 
-for i = 88:ROI3DNum  % loop through the 3DROI table
+for i = 91:ROI3DNum  % loop through the 3DROI table
     close(gcf)
     tempStruct = ROI3DWithTraceTable.registered_trace_session2(i);       %check registered session2 trace 24.10.31
     f = figure('units','normalized','outerposition',[0 0.5 0.5 0.5]);    %show the new figure at left up corner
@@ -68,14 +68,22 @@ for i = 88:ROI3DNum  % loop through the 3DROI table
                                 'partially matched', ...
                                 'ALL MATCHED', ...
                                 'unmatched');
-            switch tempAnswer2
-                case 'unmatched'
-                    ROIRegisteredStatus(i) = 2;    %2: unmatched multiple planes
-                case 'partially matched'
-                    ROIRegisteredStatus(i) = 3;    %3: partially matched planes
-                case 'ALL MATCHED'
-                    ROIRegisteredStatus(i) = 4;    %4: all matched planes
-            end
+        switch tempAnswer2
+            case 'unmatched'
+                ROIRegisteredStatus(i) = 2;    %2: unmatched multiple planes
+            case 'partially matched'
+                ROIRegisteredStatus(i) = 3;    %3: partially matched planes
+            case 'ALL MATCHED'
+                ROIRegisteredStatus(i) = 4;    %4: all matched planes
+        end
+        
+        [indx,tf] = listdlg('PromptString',{'Select the plane represent this 3D-ROI'},...
+                            'ListString',legendStr,'SelectionMode','single');     %use the fields with value to create a list dialog box
+        
+        if tf 
+            ROI3DWithTraceTable.registered_trace_session2(i).selected = ROI3DWithTraceTable.registered_trace_session2(i).(legendStr{indx});
+        end
+        
     end
 
     tempAnswer3 = questdlg('Move to the next ROI?', ...
