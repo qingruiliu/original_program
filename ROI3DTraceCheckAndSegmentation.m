@@ -1,5 +1,4 @@
 %% Loop through the ROI3DWithTraceTable of one session and check the calcium trace of each 3DROI
-global seg
 ROI3DNum = max(ROI3DWithTraceTable.ROI3DIdx);
 
 ROIRegisteredNumber = zeros(ROI3DNum,1);  % the matrix to save the registered status
@@ -106,7 +105,7 @@ for i = 500:ROI3DNum  % loop through the 3DROI table
         ROIRegisteredStatus(i) = 1;    %registered to one plane
         tempTrace = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{1});         %give the .selected field with the only field with value
 
-        tempTraceCell = selectedTraceSegment(tempTrace,legendStr{1});  %use the function to segment the selected trace
+        tempTraceCell = selectedTraceSegment(tempTrace, legendStr{1}, seg);  %use the function to segment the selected trace
     elseif tempCount >= 2
         tempAnswer2 = questdlg('matched or unmatched?', ...
                                 titleStr, ...
@@ -129,7 +128,7 @@ for i = 500:ROI3DNum  % loop through the 3DROI table
         
         if tf 
             tempTrace = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{indx});
-            tempTraceCell = selectedTraceSegment(tempTrace,legendStr{indx}); %use the function to segment the selected trace
+            tempTraceCell = selectedTraceSegment(tempTrace, legendStr{indx}, seg); %use the function to segment the selected trace
         end
 
      
@@ -156,9 +155,8 @@ for i = 500:ROI3DNum  % loop through the 3DROI table
 end
 
 
-function segmentedTrace = selectedTraceSegment(trace,plane)
-    global seg
-    %two global variables: seg.timeStampTable and seg.totalLatency
+function segmentedTrace = selectedTraceSegment(trace, plane, seg)
+    %two variables: seg.timeStampTable and seg.totalLatency
     timeStamp = seg.timeStampTable.(plane);                              %get the time stamp of the selected plane
     trialTimeMark = [seg.totalLatency(1,1), seg.totalLatency(6,:),inf];  %the time mark of each trial
     trialLabels = discretize(timeStamp,trialTimeMark);                   %the trial labels of each frame
