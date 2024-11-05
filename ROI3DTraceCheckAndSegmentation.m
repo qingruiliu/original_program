@@ -24,8 +24,8 @@ for i = 1:length(timeStamps)
     tempData(:,2) = [];
     
     %make each timestamp evenly spaced
-    %frameTime = (max(tempData)-tempData(1))/(length(tempData)-1);
-    %tempData = (tempData(1):frameTime:max(tempData))';
+    frameTime = (max(tempData)-tempData(1))/(length(tempData)-1);
+    tempData = (tempData(1):frameTime:max(tempData))';
     seg.timeStampTable.(tempStampStr) = tempData;
 end
 seg.timeStampTable{:,:} = seg.timeStampTable{:,:} - seg.timeStampTable.Z0(1);  %make the first frame start from 0
@@ -43,8 +43,12 @@ lat = mLatency';
 lat = reshape(lat,[],1);
 lat = cumsum(lat);
 seg.totalLatency = reshape(lat,[],160);
-seg.totalLatency = seg.totalLatency + timeDiff/2 + tempTimeLag;
-
+seg.totalLatency = seg.totalLatency + timeDiff/2 + tempTimeLag;  %seg.totalLatency:   row1 -- end of cue
+%                                                                                     row2 -- end of post-cue(0 point, start of stim)
+%                                                                                     row3 -- end of stim
+%                                                                                     row4 -- end of RW
+%                                                                                     row5 -- end of ITI
+%                                                                                     row6 -- time lapse to next trial
 %% prepare the plot for each ROI's registered traces
 
 commonX = 1:1000;    %only plot the first 1000 frames
@@ -100,12 +104,13 @@ for i = 500:ROI3DNum  % loop through the 3DROI table
     saveas(f,saveStr)
     if tempCount == 0
         ROIRegisteredStatus(i) = 0;    %not registered to any planes
-        ROI3DWithTraceTable.(sessionStr)(i).selected = [];   %11.1 add the selected field to the struct,when segmentation, only use the .selected field
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace = [];   %11.1 add the selected field to the struct,when segmentation, only use the .selected field
+        ROI3DWithTraceTable.(sessionStr)(i).selected_Z = []; %11.5 new field to save the selected plane   
     elseif tempCount == 1   
         ROIRegisteredStatus(i) = 1;    %registered to one plane
-        tempTrace = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{1});         %give the .selected field with the only field with value
-
+        tempTrace = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{1});         %give the .selected field with the only field with value      
         tempTraceCell = selectedTraceSegment(tempTrace, legendStr{1}, seg);  %use the function to segment the selected trace
+        ROI3DWithTraceTable.(sessionStr)(i).selected_Z = legendStr{1};       %11.5 new field to save the selected plane
     elseif tempCount >= 2
         tempAnswer2 = questdlg('matched or unmatched?', ...
                                 titleStr, ...
@@ -127,6 +132,7 @@ for i = 500:ROI3DNum  % loop through the 3DROI table
                             'ListSize',[500 300]);     %use the fields with value to create a list dialog box
         
         if tf 
+            ROI3DWithTraceTable.(sessionStr)(i).selected_Z = legendStr{indx};      %11.5 new field to save the selected plane
             tempTrace = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{indx});
             tempTraceCell = selectedTraceSegment(tempTrace, legendStr{indx}, seg); %use the function to segment the selected trace
         end
@@ -134,11 +140,11 @@ for i = 500:ROI3DNum  % loop through the 3DROI table
      
     end
     %create a table to save the trace and behavioral data of current ROI
-    ROI3DWithTraceTable.(sessionStr)(i).selected = table();
-    ROI3DWithTraceTable.(sessionStr)(i).selected.trialNum = h.data1(:,1);
-    ROI3DWithTraceTable.(sessionStr)(i).selected.trialResult = h.data1(:,2);
-    ROI3DWithTraceTable.(sessionStr)(i).selected.trialContrast = h.data1(:,7);
-    ROI3DWithTraceTable.(sessionStr)(i).selected.traces = tempTraceCell;
+    ROI3DWithTraceTable.(sessionStr)(i).selected_trace = table();
+    ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialNum = h.data1(:,1);
+    ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialResult = h.data1(:,2);
+    ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialContrast = h.data1(:,7);
+    ROI3DWithTraceTable.(sessionStr)(i).selected_trace.traces = tempTraceCell;
 
     tempAnswer3 = questdlg('Move to the next ROI?', ...
                             'NEXT', ...
@@ -160,8 +166,10 @@ function segmentedTrace = selectedTraceSegment(trace, plane, seg)
     timeStamp = seg.timeStampTable.(plane);                              %get the time stamp of the selected plane
     trialTimeMark = [seg.totalLatency(1,1), seg.totalLatency(6,:),inf];  %the time mark of each trial
     trialLabels = discretize(timeStamp,trialTimeMark);                   %the trial labels of each frame
-    tempTrace = trace;
-    traceWithTimeStamp = [trialLabels,timeStamp,tempTrace{1}];  %1st column: trial labels, 
+    tempTrace = trace;                                  
+    
+    %the z-score of the trace was used for segmentation 24.11.5
+    traceWithTimeStamp = [trialLabels,timeStamp,zscore(tempTrace{1})];  %1st column: trial labels, 
                                                          %2nd column: time stamp,   
                                                          %3rd column: trace value
     matTrialLabels  = unique(trialLabels);  %the unique trial labels
@@ -169,8 +177,8 @@ function segmentedTrace = selectedTraceSegment(trace, plane, seg)
 
     for i = 1 : 160    % one session have 160 trials
         tempTrace = traceWithTimeStamp((traceWithTimeStamp(:,1) == matTrialLabels(i)),:);  %get the trace of each trial
-        tempTrace(:,2) = tempTrace(:,2) - tempTrace(1,2);                    %make the time stamp of each trial start from 0
-        trialMat{i} = tempTrace;                                             %save the trace into the cell array
+        tempTrace(:,2) = tempTrace(:,2) - seg.totalLatency(2,i);                           %make the time stamp of each trial start from 0
+        trialMat{i} = tempTrace;                                                           %save the trace into the cell array
     end
     segmentedTrace = trialMat;   %return the cell array of segmented trace
 end
