@@ -1,5 +1,10 @@
 %% Based on the cellReg registrated result,assign the 2P mask to the according index
 
+%choose the session currently working with
+sessionNum = questdlg('Which session of data are you working with:','session check',...
+                                   'session1','session2','session3','session1');      %choose the session to check
+  
+sessionStr = append('registered_trace_',sessionNum);        %11.5 update, choose the session working with
 % load the cellReg result and only keep the information with 2P info
 disp('----------choose the cellReg output .mat----------')
 [CROut,CRpath] = uigetfile('cellRegistered*.mat');
@@ -10,7 +15,7 @@ nullIdx = cellRegRegisterMap(:,1) == 0;
 cellRegRegisterMap(nullIdx,:) = [];
  %important update, cellReg output may neglect the order in the first
  %column
-cellRegRegisterMap = sortrows(cellRegRegisterMap,1,'ascend');   
+cellRegRegisterMap = sortrows(cellRegRegisterMap,1,'ascend'); 
 
 %% 1st column: 2P mask; later columns: cellpose mask
 disp('--------choose the 2P mat file--------')
@@ -142,7 +147,7 @@ for i = 1 : size(ROIIdxMat)
         tempTrace = suite2pTable.DeconvF(i);           %get the deconvoluted trace of 2P ROI
             
         depthLabel = extractAfter(twoPName,'t');       %current 2P plane label
-        ROI3DWithTraceTable.registered_trace_session2(tempIdx).(depthLabel) = tempTrace;   %10.31 session2
+        ROI3DWithTraceTable.(sessionStr)(tempIdx).(depthLabel) = tempTrace;   %10.31 session2
     else
         mostNonZero(i) = 0;
     end
