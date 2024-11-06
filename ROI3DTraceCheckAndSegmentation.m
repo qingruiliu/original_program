@@ -53,7 +53,7 @@ seg.totalLatency = seg.totalLatency + timeDiff/2 + tempTimeLag;  %seg.totalLaten
 
 commonX = 1:1000;    %only plot the first 1000 frames
 
-for i = 500:ROI3DNum  % loop through the 3DROI table
+for i = 1:ROI3DNum  % loop through the 3DROI table
     close(gcf)
     tempStruct = ROI3DWithTraceTable.(sessionStr)(i);       %check registered session2 trace 24.10.31
     f = figure('units','normalized','outerposition',[0 0.5 0.5 0.5]);    %show the new figure at left up corner
@@ -136,16 +136,15 @@ for i = 500:ROI3DNum  % loop through the 3DROI table
             tempTrace = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{indx});
             tempTraceCell = selectedTraceSegment(tempTrace, legendStr{indx}, seg); %use the function to segment the selected trace
         end
-
-     
+        
+        %create a table to save the trace and behavioral data of current ROI
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace = table();
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialNum = h.data1(:,1);
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialResult = h.data1(:,2);
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialContrast = h.data1(:,7);
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace.traces = tempTraceCell;
     end
-    %create a table to save the trace and behavioral data of current ROI
-    ROI3DWithTraceTable.(sessionStr)(i).selected_trace = table();
-    ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialNum = h.data1(:,1);
-    ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialResult = h.data1(:,2);
-    ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialContrast = h.data1(:,7);
-    ROI3DWithTraceTable.(sessionStr)(i).selected_trace.traces = tempTraceCell;
-
+    
     tempAnswer3 = questdlg('Move to the next ROI?', ...
                             'NEXT', ...
                             'Next ROI', ...
