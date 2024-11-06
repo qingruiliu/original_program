@@ -111,6 +111,12 @@ for i = 1:ROI3DNum  % loop through the 3DROI table
         tempTrace = ROI3DWithTraceTable.(sessionStr)(i).(legendStr{1});         %give the .selected field with the only field with value      
         tempTraceCell = selectedTraceSegment(tempTrace, legendStr{1}, seg);  %use the function to segment the selected trace
         ROI3DWithTraceTable.(sessionStr)(i).selected_Z = legendStr{1};       %11.5 new field to save the selected plane
+        %create a table to save the trace and behavioral data of current ROI
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace = table();
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialNum = h.data1(:,1);
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialResult = h.data1(:,2);
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace.trialContrast = h.data1(:,7);
+        ROI3DWithTraceTable.(sessionStr)(i).selected_trace.traces = tempTraceCell;
     elseif tempCount >= 2
         tempAnswer2 = questdlg('matched or unmatched?', ...
                                 titleStr, ...
@@ -158,8 +164,24 @@ for i = 1:ROI3DNum  % loop through the 3DROI table
     end
     
 end
+close(gcf)
+%% result output
+disp('-------------------------------------------------------------------')
+disp('-----------------------result of current session-------------------')
+fprintf('Unregistered ROIs: %s \n',num2str(sum(ROIRegisteredNumber == 0)));
+fprintf('1-plane registered ROIs: %s\n',num2str(sum(ROIRegisteredNumber == 1)));
+fprintf('multi-plane registered ROIs: %s\n \n',num2str(sum(ROIRegisteredNumber >= 2)));
+disp('----------------------status report of multi-plane registered ROIs--------------')
+fprintf('Unmatched multi-plane registered ROIs: %s\n',num2str(sum(ROIRegisteredStatus == 2)));
+fprintf('Partially matched multi-plane registered ROIs: %s\n',num2str(sum(ROIRegisteredStatus == 3)));
+fprintf('All-matched multi-plane registered ROIs: %s\n',num2str(sum(ROIRegisteredStatus == 4)));
 
+resultStr = append(sessionStr,'_registerResult.mat');
+save(resultStr,'ROIRegisteredNumber','ROIRegisteredStatus');
 
+%% save the table ROI3DWithTraceTable
+%save('ROI3DWithTraceTable.mat','ROI3DWithTraceTable','-v7.3')
+%% 
 function segmentedTrace = selectedTraceSegment(trace, plane, seg)
     %two variables: seg.timeStampTable and seg.totalLatency
     timeStamp = seg.timeStampTable.(plane);                              %get the time stamp of the selected plane
