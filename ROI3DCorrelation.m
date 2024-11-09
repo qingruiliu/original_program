@@ -90,3 +90,47 @@ ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
 set(gca,'FontSize',16)
 
 %% adjust the direction to the actual tangential and radial orientation
+
+%read the volume of the tiff file
+questdlg('Please select the volume imaging of current mouse','Select the tiff file of the volume','OK','OK');
+[volumeName, volumePath] = uigetfile('*.tif','Select the tiff file of the volume');
+cd(volumePath);
+dendriteVolume = double(tiffreadVolume(volumeName))/255;
+%volumeViewer(dendriteVolume); %show the volume of the L5 neuron
+%% 
+questdlg('proceed to the next step','Next Step','OK','OK');
+
+denoiseNet = denoisingNetwork('DnCNN'); %create a denoising network
+apicalDendriteMat = zeros(size(dendriteVolume,1),size(dendriteVolume,2),50); %create a matrix to store the apical dendrite orientation
+orientationTable = zeros(5,3); %the table to save the orientation information of each 10 slices
+
+wb3 = waitbar(0, 'Processing the volume...'); %create a waitbar to show the progress
+for i = 1:50    %depth 150 - 300
+    waitbar(i/50, wb3); %update the waitbar
+    tempZ = dendriteVolume(:,:,i);
+    tempZdenoise1 = denoiseImage(tempZ,denoiseNet); %denoise the image
+
+    tempZdenoise = imbinarize(tempZdenoise1,0.75); %binarize the image
+    
+    %remove the large connected component
+    tempZdenoise = bwareafilt(tempZdenoise,[2 30]); %remove the large connected component
+    apicalDendriteMat(:,:,i) = tempZdenoise;
+    if mod(i,10) == 0
+        tempVolume = apicalDendriteMat(:,:,i-9:i);
+        orientationTable(i/10,:) = table2array(regionprops3(tempVolume,'Orientation'));
+    end
+end
+close(wb3); %close the waitbar
+volumeViewer(apicalDendriteMat); %show the volume of the apical dendrite
+
+%% since the z-step of each slice is 3um, the the elongated matrix with 3um step
+% 'nearest or linear'
+apicalDendriteMatwithZstep = imresize3(apicalDendriteMat,[size(apicalDendriteMat,1),size(apicalDendriteMat,2),size(apicalDendriteMat,3)*3],'linear');
+volumeViewer(apicalDendriteMatwithZstep); %show the volume of the apical dendrite with 3um step
+
+
+%% 
+totalOrientation = regionprops3(apicalDendriteMat,'Orientation'); %get the orientation of the apical dendrite
+
+%?which one is better: total orientation of 50 planes or mean of 10 planes?
+ 

@@ -1,5 +1,5 @@
 %% step1 load the manually adjusted 3D ROI .tif file from cellPose
-
+%the feature-added version of this program is used.
 [fileName,path] = uigetfile('.tif');
 cd(path)
 cellPoseVolume = double(tiffreadVolume(fileName));
