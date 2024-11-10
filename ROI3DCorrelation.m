@@ -24,7 +24,7 @@ for i = 1 : height(ROI3DWithTraceTable)
 end
 close(wb1); %close the waitbar
 
-% Remove the rows where the second cell element is 0
+% Remove the ROIs without trace
 ROICorrIdx(cellfun(@(x) isequal(x, 0), ROICorrIdx(:,2)), :) = []; 
 
 pairROINum = size(ROICorrIdx,1);        %get the number of ROIs with value
@@ -110,7 +110,7 @@ for i = 1:50    %depth 150 - 300
     tempZ = dendriteVolume(:,:,i);
     tempZdenoise1 = denoiseImage(tempZ,denoiseNet); %denoise the image
 
-    tempZdenoise = imbinarize(tempZdenoise1,0.75); %binarize the image
+    tempZdenoise = imbinarize(tempZdenoise1,0.5); %binarize the image
     
     %remove the large connected component
     tempZdenoise = bwareafilt(tempZdenoise,[2 30]); %remove the large connected component
@@ -123,14 +123,91 @@ end
 close(wb3); %close the waitbar
 volumeViewer(apicalDendriteMat); %show the volume of the apical dendrite
 
+%% check the connected component of the apical dendrite
+connectedApicalDendrite = bwconncomp(apicalDendriteMat,18); %get the connected component of the apical dendrite
+%exclude the small connected component
+for i = 1 : connectedApicalDendrite.NumObjects
+    if length(connectedApicalDendrite.PixelIdxList{i}) < 10   %remove the dendrite elements smaller than 10 pixels
+        connectedApicalDendrite.PixelIdxList{i} = {};
+    end
+end
+%remove the empty cell
+connectedApicalDendrite.PixelIdxList = connectedApicalDendrite.PixelIdxList(~cellfun('isempty',connectedApicalDendrite.PixelIdxList));
+%change the value of NumObjects
+connectedApicalDendrite.NumObjects = length(connectedApicalDendrite.PixelIdxList);
 %% since the z-step of each slice is 3um, the the elongated matrix with 3um step
 % 'nearest or linear'
 apicalDendriteMatwithZstep = imresize3(apicalDendriteMat,[size(apicalDendriteMat,1),size(apicalDendriteMat,2),size(apicalDendriteMat,3)*3],'linear');
 volumeViewer(apicalDendriteMatwithZstep); %show the volume of the apical dendrite with 3um step
 
-
-%% 
-totalOrientation = regionprops3(apicalDendriteMat,'Orientation'); %get the orientation of the apical dendrite
-
-%?which one is better: total orientation of 50 planes or mean of 10 planes?
  
+%% calculate the orientation of each apical dendrite
+totalOrientation = regionprops3(connectedApicalDendrite,'EigenVectors','EigenValues'); %get the orientation of the apical dendrite
+
+%calculate the mean eigenvectors and eigenvalues of the apical dendrite
+meanEigenVectors = zeros(3,3);   %create a matrix to store the mean eigenvectors
+meanEigenValues = zeros(3,1);    %create a vector to store the mean eigenvalues
+totalWeight = 0;                 %initialize total weight
+for i = 1 : connectedApicalDendrite.NumObjects
+    weight = norm(totalOrientation.EigenValues{i}); %use the norm of eigenvalues as weight
+    meanEigenVectors = abs(meanEigenVectors) + weight * totalOrientation.EigenVectors{i};
+    meanEigenValues = meanEigenValues + weight * totalOrientation.EigenValues{i};
+    totalWeight = totalWeight + weight;             %accumulate the total weight
+end
+meanEigenVectors = meanEigenVectors / totalWeight;  %weighted mean eigenvectors
+meanEigenValues = meanEigenValues / totalWeight;    %weighted mean eigenvalues
+
+%% transform the 3D ROI center using the mean eigenvectors and eigenvalues
+%ROICorrIdx(:,4) = (); %create a cell array to store the transformed 3D ROI center
+for i = 1 : size(ROICorrIdx,1)
+    tempCenter = cell2mat(ROICorrIdx(i,3));
+    normEigenValueMat = diag(meanEigenValues / norm(meanEigenValues));
+    transformedCenter = (meanEigenVectors * normEigenValueMat * tempCenter')';   %transform the 3D ROI center
+    ROICorrIdx(i,4) = {transformedCenter}; %store the transformed 3D ROI center
+end
+
+%% code from other files
+%NVec: unit vector representing the microcolumn axis or apical dendrites
+ClmAxisVec=NVec; 
+
+ClmAxisVec(3)=sqrt(1-(ClmAxisVec(1)^2+ClmAxisVec(2)^2));
+[tgtrng,tgtang] = rangeangle(ClmAxisVec');
+
+TempAngle=[tgtang(1),tgtang(2)-90];
+
+Theta2=deg2rad(-1*TempAngle(1));
+Phi2=deg2rad(-1*TempAngle(2));
+ClmPrjMtx1=[cos(Theta2) -sin(Theta2);sin(Theta2) cos(Theta2)];
+ClmPrjMtx2=[cos(Phi2) -sin(Phi2);sin(Phi2) cos(Phi2)];
+
+TempVec=ClmAxisVec;
+
+Temp4=ClmPrjMtx1*[TempVec(1);TempVec(2)];
+TempVec(1)=Temp4(1);
+TempVec(2)=Temp4(2);
+Temp3=ClmPrjMtx2*[TempVec(1);TempVec(3)];
+TempVec(1)=Temp3(1);
+TempVec(3)=Temp3(2);
+[temprng,tempang] = rangeangle(TempVec');
+
+disp('ClmAxisVecの回転後の行列')
+TempVec
+
+%%%
+
+TempPosUM1=Pos; %Pos: 3D coordinates of GCaMP6 cells
+
+
+tTempPosUM1=TempPosUM1;
+h = waitbar(0,'--座標回転中1--');
+for iCell=1:size(TempPosUM1,1)
+    Temp1=ClmPrjMtx1*TempPosUM1(iCell,1:2)';
+    tTempPosUM1(iCell,1)=Temp1(1);
+    tTempPosUM1(iCell,2)=Temp1(2);
+    Temp2=ClmPrjMtx2*[tTempPosUM1(iCell,1);TempPosUM1(iCell,3)];
+    tTempPosUM1(iCell,1)=Temp2(1);
+    tTempPosUM1(iCell,3)=Temp2(2);
+
+    waitbar(iCell/size(tTempPosUM1,1));
+end
+close(h)
