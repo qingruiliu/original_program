@@ -39,8 +39,9 @@ for i = 1 : pairROINum^2
     [row, col] = ind2sub([pairROINum, pairROINum], i); %get the row and column index of the pair
     if row ~= col      %different ROIs
         ROIPairCorrMat(row, col)  = corr(cell2mat(ROICorrIdx(row,2)), cell2mat(ROICorrIdx(col,2))); %calculate the correlation coefficient
-        ROIPairDistantMat(row, col) = norm(cell2mat(ROICorrIdx(row,3)) - cell2mat(ROICorrIdx(col,3))); %calculate the distance between the centers of the ROIs 
-    elseif row == col  %same ROI
+        %only calculate the distance of x
+        ROIPairDistantMat(row, col) = norm(ROICorrIdx{row,3}(:,1:2) - ROICorrIdx{col,3}(:,1:2));
+    elseif row == col  %the same ROIs
         ROIPairCorrMat(row, col) = 1; %set the diagonal element to 1
         ROIPairDistantMat(row, col) = 0; %set the diagonal element to 0
     end
@@ -63,7 +64,7 @@ set(gca,'FontSize',16)
 %% plot the correlation coefficient and distance of ROIs on the same figure
 figure;
 hold on
-xlim([0 inf]);
+xlim([0 100]);
 ylim([-0.2 1]);
 
 corrAndDist(:,1) = ROIPairCorrMat(:);   %reshape the correlation coefficient matrix to a column vector
