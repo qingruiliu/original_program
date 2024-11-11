@@ -157,8 +157,8 @@ set(gca,'FontSize',16)
 %% plot the correlation coefficient and untransformed distance of ROIs on the same figure
 figure;
 hold on
-xlim([0 100]);
-ylim([-0.2 1]);
+xlim([0 50]);
+ylim([-0.1 0.2]);
 
 corrAndDist(:,1) = ROIPairCorrMat(:);   %reshape the correlation coefficient matrix to a column vector
 corrAndDist(:,2) = ROIPairXYDistMat(:);
@@ -171,7 +171,7 @@ corrAndDist1 = corrAndDist(corrAndDist(:,2) ~= 0,:); %exclude the diagonal eleme
 %exclude the cell pair with XYZ distance smaller than 20 um
 corrAndDist1 = corrAndDist1(corrAndDist1(:,3) > 20,:);
 
-scatter(corrAndDist1(:,2),corrAndDist1(:,1),10,'Filled'); %plot the scatter plot of correlation coefficient and distance
+scatter(corrAndDist1(:,2),corrAndDist1(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
 title('Correlation Coefficient and X-Y Distance of ROIs'); %add the title
 set(gca,'FontSize',16)
 %plot the average correlation coefficient of ROIs with the different distance bin
@@ -187,11 +187,11 @@ xlabel('Distance between the centers of ROI pairs');     %add the x-axis label
 ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
 set(gca,'FontSize',16)
 
-% plot the correlation coefficient and transformed distance of ROIs on the same figure
+%% plot the correlation coefficient and transformed distance of ROIs on the same figure
 figure;
 hold on
-xlim([0 100]);
-ylim([-0.2 1]);
+xlim([0 50]);
+ylim([-0.05 0.1]);
 
 corrAndTransDist(:,1) = ROIPairCorrMat(:);   %reshape the correlation coefficient matrix to a column vector
 corrAndTransDist(:,2) = ROIPairTransDistantMat(:);%reshape the distance matrix to a column vector
@@ -203,7 +203,7 @@ corrAndTransDist1 = corrAndTransDist(corrAndTransDist(:,2) ~= 0,:);
 %exclude the cell pair with XYZ distance smaller than 20 um
 corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,3) > 20,:);
 
-scatter(corrAndTransDist1(:,2),corrAndTransDist1(:,1),10,'Filled'); %plot the scatter plot of correlation coefficient and distance
+scatter(corrAndTransDist1(:,2),corrAndTransDist1(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
 title('Correlation Coefficient and Transformed X-Y Distance of ROIs'); %add the title
 set(gca,'FontSize',16)
 %plot the average correlation coefficient of ROIs with the different distance bin
@@ -213,9 +213,37 @@ for i = 1 : length(distanceBin)-1
     tempIdx = find(corrAndTransDist1(:,2) >= distanceBin(i) & corrAndTransDist1(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
     corrBin(i) = mean(corrAndTransDist1(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
 end
-plot(distanceBin(1:end-1)+5,corrBin,'k','LineWidth',2);  %plot the average correlation coefficient of the distance bin
+plot(distanceBin(2:end)/2,corrBin,'g','LineWidth',2);  %plot the average correlation coefficient of the distance bin
+
+%% generate the surrogate data and check the significance of the correlation coefficient at different distance bin
+%randomly shuffle the correspondence between the correlation coefficient and x-y distance for 1000 times
+surrogateTimes = 1000;
+corrAndTransDistSurrogate = zeros(size(corrAndTransDist1,1),2,surrogateTimes); %create a matrix to store the surrogate data
+wb4 = waitbar(0, 'Generating and plotting the surrogate data...'); %create a waitbar to show the progress
+for i = 1 : surrogateTimes
+    waitbar(i/surrogateTimes, wb4); %update the waitbar
+    tempIndex = randperm(size(corrAndTransDist1,1)); %randomly shuffle the index
+    corrAndTransDistSurrogate(:,1,i) = corrAndTransDist1(tempIndex,1); %only shuffle the correlation coefficient
+    corrAndTransDistSurrogate(:,2,i) = corrAndTransDist1(:,2);       %keep the transformed distance unchanged
+    %calculate the average correlation coefficient of the distance bin
+    for j = 1 : length(distanceBin)-1
+        tempIdx = find(corrAndTransDistSurrogate(:,2,i) >= distanceBin(j) & corrAndTransDistSurrogate(:,2,i) < distanceBin(j+1)); %find the index of the correlation coefficient in the distance bin
+        corrBin(j) = mean(corrAndTransDistSurrogate(tempIdx,1,i));  %calculate the average correlation coefficient of the distance bin
+    end
+    %plot the average correlation coefficient of the distance bin
+    plot(distanceBin(2:end)/2,corrBin,'Color',[0.4 0.4 0.4 0.1],'LineWidth', 0.5);  %plot the average correlation coefficient of the distance bin
+end
+close(wb4); %close the waitbar
+
+%% plot the averaged surrogate data
+corrAndTransDistSurrogateMean = mean(corrAndTransDistSurrogate,3); %calculate the mean of the surrogate data
+for i = 1 : length(distanceBin)-1
+    tempIdx = find(corrAndTransDistSurrogateMean(:,2) >= distanceBin(i) & corrAndTransDistSurrogateMean(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
+    corrBin(i) = mean(corrAndTransDistSurrogateMean(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
+end
+plot(distanceBin(2:end)/2,corrBin,'k','LineWidth',1.5);  %plot the average correlation coefficient of the distance bin
 hold off
-xlabel('Distance between the transformed centers of ROI pairs');     %add the x-axis label
+xlabel('Tangential distance between the transformed centers of ROI pairs');     %add the x-axis label
 ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
 set(gca,'FontSize',16)
 
