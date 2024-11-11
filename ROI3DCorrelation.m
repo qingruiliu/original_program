@@ -1,95 +1,3 @@
-%% index back to the whole trace 
-ROICorrIdx = cell(height(ROI3DWithTraceTable),3);   %create a cell array to store the index of ROI and the corresponding trace
-
-wb1 = waitbar(0, 'Indexing the ROI and trace...'); %create a waitbar to show the progress
-for i = 1 : height(ROI3DWithTraceTable)
-    waitbar(i/height(ROI3DWithTraceTable), wb1); %update the waitbar
-    ROICorrIdx(i,1) = {i};                          %store the index of ROI
-    tempROI = ROI3DWithTraceTable.registered_trace_session1(i,1); %get the registered struct of current ROI
-
-    if ~isempty(tempROI.selected_Z)             %if the ROI have registered trace label
-        selectedIdx =tempROI.selected_Z;        %assign the selected registered trace label
-        tempROITrace = tempROI.(selectedIdx);   
-        ROICorrIdx(i,2) = tempROITrace;         %store the trace of the ROI
-    else
-        ROICorrIdx(i,2) = {0};                  %if the ROI have no registered trace label, store 0
-    end
-
-    %assign and calculate the center of each ROI
-    tempFP_3D = ROI3DWithTraceTable.FP_3D{i};   %get the footprint of current ROI
-    [x,y,z] = size(tempFP_3D);                   %get the size of the footprint
-    [roi_x, roi_y,roi_z] = ind2sub([x,y,z],find(tempFP_3D == 1));     %get the index of the footprint
-    tempCenter = [mean(roi_x), mean(roi_y), mean(roi_z)];              %calculate the center of the footprint
-    ROICorrIdx(i,3) = {tempCenter};                                     %store the center of the ROI
-end
-close(wb1); %close the waitbar
-
-% Remove the ROIs without trace
-ROICorrIdx(cellfun(@(x) isequal(x, 0), ROICorrIdx(:,2)), :) = []; 
-
-pairROINum = size(ROICorrIdx,1);        %get the number of ROIs with value
-ROIPairCorrMat = zeros(pairROINum); %create a cell array to store the index of ROI and the corresponding trace
-ROIPairDistantMat = zeros(pairROINum); %create a cell array to store the index of ROI and the corresponding trace
-%% calculate the correlation coefficient of ROIs and show the plot
-
-wb2 = waitbar(0, 'Calculating the correlation coefficient of ROIs...'); %create a waitbar to show the progress
-%plot the cell-pair distance and correlation coefficient on the same figure
-for i = 1 : pairROINum^2
-    waitbar(i/(pairROINum^2), wb2); %update the waitbar
-    [row, col] = ind2sub([pairROINum, pairROINum], i); %get the row and column index of the pair
-    if row ~= col      %different ROIs
-        ROIPairCorrMat(row, col)  = corr(cell2mat(ROICorrIdx(row,2)), cell2mat(ROICorrIdx(col,2))); %calculate the correlation coefficient
-        %only calculate the distance of x
-        ROIPairDistantMat(row, col) = norm(ROICorrIdx{row,3}(:,1:2) - ROICorrIdx{col,3}(:,1:2));
-    elseif row == col  %the same ROIs
-        ROIPairCorrMat(row, col) = 1; %set the diagonal element to 1
-        ROIPairDistantMat(row, col) = 0; %set the diagonal element to 0
-    end
-end
-close(wb2); %close the waitbar
-%% plot the correlation and distance matrix
-figure; 
-imagesc(ROIPairCorrMat); %plot the correlation coefficient matrix
-colorbar; %add the colorbar
-clim([-0.2 0.2]);
-title('Correlation Coefficient Matrix of ROIs'); %add the title
-set(gca,'FontSize',16)
-figure;
-imagesc(ROIPairDistantMat); %plot the distance matrix
-colorbar; %add the colorbar
-clim([0 100]);
-title('Distance Matrix of ROIs'); %add the title
-set(gca,'FontSize',16)
-
-%% plot the correlation coefficient and distance of ROIs on the same figure
-figure;
-hold on
-xlim([0 100]);
-ylim([-0.2 1]);
-
-corrAndDist(:,1) = ROIPairCorrMat(:);   %reshape the correlation coefficient matrix to a column vector
-corrAndDist(:,2) = ROIPairDistantMat(:);%reshape the distance matrix to a column vector
-
-%sort the correlation coefficient and distance matrix by distance
-corrAndDist = sortrows(corrAndDist,2);
-%exclude the diagonal element
-corrAndDist1 = corrAndDist(corrAndDist(:,2) ~= 0,:);
-scatter(corrAndDist1(:,2),corrAndDist1(:,1),10,'Filled'); %plot the scatter plot of correlation coefficient and distance
-title('Correlation Coefficient and Distance of ROIs'); %add the title
-set(gca,'FontSize',16)
-%plot the average correlation coefficient of ROIs with the different distance bin
-distanceBin = 0:5:max(corrAndDist1(:,2));       %create the distance bin
-corrBin = zeros(length(distanceBin)-1,1);       %create a vector to store the average correlation coefficient of each distance bin
-for i = 1 : length(distanceBin)-1
-    tempIdx = find(corrAndDist(:,2) >= distanceBin(i) & corrAndDist(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
-    corrBin(i) = mean(corrAndDist(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
-end
-plot(distanceBin(1:end-1)+5,corrBin,'k','LineWidth',2);  %plot the average correlation coefficient of the distance bin
-hold off
-xlabel('Distance between the centers of ROI pairs');     %add the x-axis label
-ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
-set(gca,'FontSize',16)
-
 %% adjust the direction to the actual tangential and radial orientation
 
 %read the volume of the tiff file
@@ -98,7 +6,8 @@ questdlg('Please select the volume imaging of current mouse','Select the tiff fi
 cd(volumePath);
 dendriteVolume = double(tiffreadVolume(volumeName))/255;
 %volumeViewer(dendriteVolume); %show the volume of the L5 neuron
-%% 
+
+%% reconstruct the volume of the apical dendrite
 questdlg('proceed to the next step','Next Step','OK','OK');
 
 denoiseNet = denoisingNetwork('DnCNN'); %create a denoising network
@@ -123,7 +32,6 @@ for i = 1:50    %depth 150 - 300
 end
 close(wb3); %close the waitbar
 volumeViewer(apicalDendriteMat); %show the volume of the apical dendrite
-
 %% check the connected component of the apical dendrite
 connectedApicalDendrite = bwconncomp(apicalDendriteMat,18); %get the connected component of the apical dendrite
 %exclude the small connected component
@@ -138,34 +46,178 @@ connectedApicalDendrite.PixelIdxList = connectedApicalDendrite.PixelIdxList(~cel
 connectedApicalDendrite.NumObjects = length(connectedApicalDendrite.PixelIdxList);
 %% since the z-step of each slice is 3um, the the elongated matrix with 3um step
 % 'nearest or linear'
-apicalDendriteMatwithZstep = imresize3(apicalDendriteMat,[size(apicalDendriteMat,1),size(apicalDendriteMat,2),size(apicalDendriteMat,3)*3],'linear');
-volumeViewer(apicalDendriteMatwithZstep); %show the volume of the apical dendrite with 3um step
+%apicalDendriteMatwithZstep = imresize3(apicalDendriteMat,[size(apicalDendriteMat,1),size(apicalDendriteMat,2),size(apicalDendriteMat,3)*3],'linear');
+%volumeViewer(apicalDendriteMatwithZstep); %show the volume of the apical dendrite with 3um step
 
  
 %% calculate the orientation of each apical dendrite
-totalOrientation = regionprops3(connectedApicalDendrite,'EigenVectors','EigenValues'); %get the orientation of the apical dendrite
+totalOrientation = regionprops3(connectedApicalDendrite,'Orientation'); %get the orientation of the apical dendrite
 
-%calculate the mean eigenvectors and eigenvalues of the apical dendrite
-meanEigenVectors = zeros(3,3);   %create a matrix to store the mean eigenvectors
-meanEigenValues = zeros(3,1);    %create a vector to store the mean eigenvalues
-totalWeight = 0;                 %initialize total weight
-for i = 1 : connectedApicalDendrite.NumObjects
-    weight = norm(totalOrientation.EigenValues{i}); %use the norm of eigenvalues as weight
-    meanEigenVectors = abs(meanEigenVectors) + weight * totalOrientation.EigenVectors{i};
-    meanEigenValues = meanEigenValues + weight * totalOrientation.EigenValues{i};
-    totalWeight = totalWeight + weight;             %accumulate the total weight
-end
-meanEigenVectors = meanEigenVectors / totalWeight;  %weighted mean eigenvectors
-meanEigenValues = meanEigenValues / totalWeight;    %weighted mean eigenvalues
+%calculate the mean orientation of the apical dendrite
+meanOrientation = mean(totalOrientation.Orientation, 1); %calculate the mean orientation
 
-%% transform the 3D ROI center using the mean eigenvectors and eigenvalues
-%ROICorrIdx(:,4) = (); %create a cell array to store the transformed 3D ROI center
-for i = 1 : size(ROICorrIdx,1)
-    tempCenter = cell2mat(ROICorrIdx(i,3));
-    normEigenValueMat = diag(meanEigenValues / norm(meanEigenValues));
-    transformedCenter = (meanEigenVectors * normEigenValueMat * tempCenter')';   %transform the 3D ROI center
+% Create rotation matrix from mean orientation
+theta = deg2rad(meanOrientation(1));
+phi = deg2rad(meanOrientation(2));
+psi = deg2rad(meanOrientation(3));
+
+Rz = [cos(psi) -sin(psi) 0; sin(psi) cos(psi) 0; 0 0 1];
+Ry = [cos(phi) 0 sin(phi); 0 1 0; -sin(phi) 0 cos(phi)];
+Rx = [1 0 0; 0 cos(theta) -sin(theta); 0 sin(theta) cos(theta)];
+
+rotationMatrix = Rz * Ry * Rx;
+
+%% index back to the whole trace 
+ROICorrIdx = cell(height(ROI3DWithTraceTable),4);   %create a cell array to store the index of ROI and the corresponding trace
+
+wb1 = waitbar(0, 'Indexing the ROI and trace...'); %create a waitbar to show the progress
+for i = 1 : height(ROI3DWithTraceTable)
+    waitbar(i/height(ROI3DWithTraceTable), wb1); %update the waitbar
+    ROICorrIdx(i,1) = {i};                          %store the index of ROI
+    tempROI = ROI3DWithTraceTable.registered_trace_session1(i,1); %get the registered struct of current ROI
+
+    if ~isempty(tempROI.selected_Z)             %if the ROI have registered trace label
+        selectedIdx =tempROI.selected_Z;        %assign the selected registered trace label
+        tempROITrace = tempROI.(selectedIdx);   
+        ROICorrIdx(i,2) = tempROITrace;         %store the trace of the ROI
+    else
+        ROICorrIdx(i,2) = {0};                  %if the ROI have no registered trace label, store 0
+    end
+
+    %assign and calculate the center of each ROI
+    tempFP_3D = ROI3DWithTraceTable.FP_3D{i};   %get the footprint of current ROI
+    [x,y,z] = size(tempFP_3D);                   %get the size of the footprint
+    [roi_x, roi_y,roi_z] = ind2sub([x,y,z],find(tempFP_3D == 1));     %get the index of the footprint, 1 is the positive pixels for this ROI
+    tempCenter = [mean(roi_x), mean(roi_y), mean(roi_z)];              %calculate the center of the footprint
+    ROICorrIdx(i,3) = {tempCenter};                                     %store the center of the ROI
+    transformedCenter = (rotationMatrix * tempCenter')';   %transform the 3D ROI center using rotation matrix
     ROICorrIdx(i,4) = {transformedCenter}; %store the transformed 3D ROI center
 end
+close(wb1); %close the waitbar
+
+% Remove the ROIs without trace
+ROICorrIdx(cellfun(@(x) isequal(x, 0), ROICorrIdx(:,2)), :) = []; 
+
+pairROINum = size(ROICorrIdx,1);        %get the number of ROIs with value
+ROIPairCorrMat = zeros(pairROINum); %create a matrix to save the correlation coefficient of paired ROIs
+ROIPairXYDistMat = zeros(pairROINum); %create a matrix to save the X-Y distance of paired ROIs
+ROIPairXYZDistMat = zeros(pairROINum); %create a matrix to save the X-Y-Z distance of paired ROIs
+ROIPairTransDistantMat = zeros(pairROINum); %create a matrix to save the transformed X-Y distance of paired ROIs
+%% calculate the correlation coefficient of ROIs and show the plot
+
+wb2 = waitbar(0, 'Calculating the correlation coefficient of ROIs...'); %create a waitbar to show the progress
+%plot the cell-pair distance and correlation coefficient on the same figure
+for i = 1 : pairROINum^2
+    waitbar(i/(pairROINum^2), wb2); %update the waitbar
+    [row, col] = ind2sub([pairROINum, pairROINum], i); %get the row and column index of the pair
+    if row ~= col      %different ROIs
+        ROIPairCorrMat(row, col)  = corr(cell2mat(ROICorrIdx(row,2)), cell2mat(ROICorrIdx(col,2))); %calculate the correlation coefficient
+        
+        ROIPairXYDistMat(row, col) = norm(ROICorrIdx{row,3}(:,1:2) - ROICorrIdx{col,3}(:,1:2));
+        ROIPairXYZDistMat(row, col) = norm(ROICorrIdx{row,3} - ROICorrIdx{col,3}); % calculate the distance of the center of the ROIs
+        ROIPairTransDistantMat(row, col) = norm(ROICorrIdx{row,4}(:,1:2) - ROICorrIdx{col,4}(:,1:2)); % calculate the distance of the transformed center 
+    elseif row == col  %the same ROIs
+        ROIPairCorrMat(row, col) = 1; %set the diagonal element to 1
+        ROIPairXYDistMat(row, col) = 0; %set the diagonal element to 0
+        ROIPairXYZDistMat(row, col) = 0; %set the diagonal element to 0
+        ROIPairTransDistantMat(row, col) = 0; %set the diagonal element to 0
+    end
+end
+close(wb2); %close the waitbar
+%% plot the correlation and distance matrix
+figure; 
+imagesc(ROIPairCorrMat); %plot the correlation coefficient matrix
+colorbar; %add the colorbar
+clim([-0.2 0.2]);
+title('Correlation Coefficient Matrix of ROIs'); %add the title
+set(gca,'FontSize',16)
+
+figure;
+imagesc(ROIPairXYDistMat); %plot the distance matrix
+colorbar; %add the colorbar
+clim([0 100]);
+title('X-Y Distance Matrix of ROIs'); %add the title
+set(gca,'FontSize',16)
+
+figure;
+imagesc(ROIPairXYZDistMat); %plot the distance matrix
+colorbar; %add the colorbar
+clim([0 100]);
+title('X-Y-Z Distance Matrix of ROIs'); %add the title
+set(gca,'FontSize',16)
+
+figure;
+imagesc(ROIPairTransDistantMat); %plot the distance matrix
+colorbar; %add the colorbar
+clim([0 100]);
+title('Transformed distance of ROI pairs'); %add the title
+set(gca,'FontSize',16)
+
+%% plot the correlation coefficient and untransformed distance of ROIs on the same figure
+figure;
+hold on
+xlim([0 100]);
+ylim([-0.2 0.2]);
+
+corrAndDist(:,1) = ROIPairCorrMat(:);   %reshape the correlation coefficient matrix to a column vector
+corrAndDist(:,2) = ROIPairXYDistMat(:);
+corrAndDist(:,3) = ROIPairXYZDistMat(:);
+
+%sort the correlation coefficient and distance matrix by distance
+corrAndDist = sortrows(corrAndDist,2);
+
+corrAndDist1 = corrAndDist(corrAndDist(:,2) ~= 0,:); %exclude the diagonal element
+%exclude the cell pair with XYZ distance smaller than 20 um
+corrAndDist1 = corrAndDist1(corrAndDist1(:,3) > 20,:);
+
+scatter(corrAndDist1(:,2),corrAndDist1(:,1),10,'Filled'); %plot the scatter plot of correlation coefficient and distance
+title('Correlation Coefficient and X-Y Distance of ROIs'); %add the title
+set(gca,'FontSize',16)
+%plot the average correlation coefficient of ROIs with the different distance bin
+distanceBin = 0:5:max(corrAndDist1(:,2));       %create the distance bin
+corrBin = zeros(length(distanceBin)-1,1);       %create a vector to store the average correlation coefficient of each distance bin
+for i = 1 : length(distanceBin)-1
+    tempIdx = find(corrAndDist1(:,2) >= distanceBin(i) & corrAndDist1(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
+    corrBin(i) = mean(corrAndDist1(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
+end
+plot(distanceBin(1:end-1)+5,corrBin,'k','LineWidth',2);  %plot the average correlation coefficient of the distance bin
+hold off
+xlabel('Distance between the centers of ROI pairs');     %add the x-axis label
+ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
+set(gca,'FontSize',16)
+
+% plot the correlation coefficient and transformed distance of ROIs on the same figure
+figure;
+hold on
+xlim([0 100]);
+ylim([-0.2 0.2]);
+
+corrAndTransDist(:,1) = ROIPairCorrMat(:);   %reshape the correlation coefficient matrix to a column vector
+corrAndTransDist(:,2) = ROIPairTransDistantMat(:);%reshape the distance matrix to a column vector
+corrAndTransDist(:,3) = ROIPairXYZDistMat(:);
+%sort the correlation coefficient and distance matrix by distance
+corrAndTransDist = sortrows(corrAndTransDist,2);
+%exclude the diagonal element
+corrAndTransDist1 = corrAndTransDist(corrAndTransDist(:,2) ~= 0,:);
+%exclude the cell pair with XYZ distance smaller than 20 um
+corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,3) > 20,:);
+
+scatter(corrAndTransDist1(:,2),corrAndTransDist1(:,1),10,'Filled'); %plot the scatter plot of correlation coefficient and distance
+title('Correlation Coefficient and Transformed X-Y Distance of ROIs'); %add the title
+set(gca,'FontSize',16)
+%plot the average correlation coefficient of ROIs with the different distance bin
+distanceBin = 0:5:max(corrAndTransDist1(:,2));       %create the distance bin
+corrBin = zeros(length(distanceBin)-1,1);       %create a vector to store the average correlation coefficient of each distance bin
+for i = 1 : length(distanceBin)-1
+    tempIdx = find(corrAndTransDist1(:,2) >= distanceBin(i) & corrAndTransDist1(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
+    corrBin(i) = mean(corrAndTransDist1(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
+end
+plot(distanceBin(1:end-1)+5,corrBin,'k','LineWidth',2);  %plot the average correlation coefficient of the distance bin
+hold off
+xlabel('Distance between the transformed centers of ROI pairs');     %add the x-axis label
+ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
+set(gca,'FontSize',16)
+
 
 %% code from other files
 %NVec: unit vector representing the microcolumn axis or apical dendrites
