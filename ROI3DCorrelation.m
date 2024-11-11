@@ -33,7 +33,8 @@ end
 close(wb3); %close the waitbar
 volumeViewer(apicalDendriteMat); %show the volume of the apical dendrite
 %% check the connected component of the apical dendrite
-connectedApicalDendrite = bwconncomp(apicalDendriteMat,18); %get the connected component of the apical dendrite
+connectedApicalDendrite = bwconncomp(apicalDendriteMat,26); %get the connected component of the apical dendrite
+
 %exclude the small connected component
 for i = 1 : connectedApicalDendrite.NumObjects
     if length(connectedApicalDendrite.PixelIdxList{i}) < 10   %remove the dendrite elements smaller than 10 pixels
@@ -157,7 +158,7 @@ set(gca,'FontSize',16)
 figure;
 hold on
 xlim([0 100]);
-ylim([-0.2 0.2]);
+ylim([-0.2 1]);
 
 corrAndDist(:,1) = ROIPairCorrMat(:);   %reshape the correlation coefficient matrix to a column vector
 corrAndDist(:,2) = ROIPairXYDistMat(:);
@@ -190,7 +191,7 @@ set(gca,'FontSize',16)
 figure;
 hold on
 xlim([0 100]);
-ylim([-0.2 0.2]);
+ylim([-0.2 1]);
 
 corrAndTransDist(:,1) = ROIPairCorrMat(:);   %reshape the correlation coefficient matrix to a column vector
 corrAndTransDist(:,2) = ROIPairTransDistantMat(:);%reshape the distance matrix to a column vector

@@ -31,8 +31,6 @@ for label = 1 : length(roiLabels)
     %binary mask for current ROI outline
     roiMask = double(cellPoseVolume == roiLabels(label));
 
-    
-
     for sliceN = 1 : size(filledVolume,3)
         filledsliceN = imfill(roiMask(:,:,sliceN),'holes');
         filledVolume(:,:,sliceN) = filledVolume(:,:,sliceN) + filledsliceN * roiLabels(label);
