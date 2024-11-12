@@ -181,7 +181,7 @@ for i = 1 : length(distanceBin)-1
     tempIdx = find(corrAndDist1(:,2) >= distanceBin(i) & corrAndDist1(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
     corrBin(i) = mean(corrAndDist1(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
 end
-plot(distanceBin(1:end-1)+5,corrBin,'k','LineWidth',2);  %plot the average correlation coefficient of the distance bin
+plot(distanceBin(2:end)/2,corrBin,'k','LineWidth',2);  %plot the average correlation coefficient of the distance bin
 hold off
 xlabel('Distance between the centers of ROI pairs');     %add the x-axis label
 ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
@@ -220,6 +220,7 @@ plot(distanceBin(2:end)/2,corrBin,'g','LineWidth',2);  %plot the average correla
 surrogateTimes = 1000;
 corrAndTransDistSurrogate = zeros(size(corrAndTransDist1,1),2,surrogateTimes); %create a matrix to store the surrogate data
 wb4 = waitbar(0, 'Generating and plotting the surrogate data...'); %create a waitbar to show the progress
+surrogateCorrBinMat = zeros(length(distanceBin)-1,surrogateTimes); %create a matrix to store the average correlation coefficient of each distance bin
 for i = 1 : surrogateTimes
     waitbar(i/surrogateTimes, wb4); %update the waitbar
     tempIndex = randperm(size(corrAndTransDist1,1)); %randomly shuffle the index
@@ -230,23 +231,26 @@ for i = 1 : surrogateTimes
         tempIdx = find(corrAndTransDistSurrogate(:,2,i) >= distanceBin(j) & corrAndTransDistSurrogate(:,2,i) < distanceBin(j+1)); %find the index of the correlation coefficient in the distance bin
         corrBin(j) = mean(corrAndTransDistSurrogate(tempIdx,1,i));  %calculate the average correlation coefficient of the distance bin
     end
+    surrogateCorrBinMat(:,i) = corrBin; %store the average correlation coefficient of each distance bin
     %plot the average correlation coefficient of the distance bin
-    plot(distanceBin(2:end)/2,corrBin,'Color',[0.4 0.4 0.4 0.1],'LineWidth', 0.5);  %plot the average correlation coefficient of the distance bin
+    plot(distanceBin(2:end)/2,corrBin,'Color',[0.3 0.3 0.3 0.1],'LineWidth', 0.5);  %plot the average correlation coefficient of the distance bin
 end
 close(wb4); %close the waitbar
 
-%% plot the averaged surrogate data
+%plot the highest 2.5% and lowest 2.5% of all the surrogateCorrBinMat
+upperBound = prctile(surrogateCorrBinMat,97.5,2); %calculate the upper bound of the surrogate data
+lowerBound = prctile(surrogateCorrBinMat,2.5,2); %calculate the lower bound of the surrogate data
+
+plot(distanceBin(2:end)/2,upperBound,'k--','LineWidth',1.5);  %plot the upper bound of the surrogate data
+plot(distanceBin(2:end)/2,lowerBound,'k--','LineWidth',1.5);  %plot the lower bound of the surrogate data
+
+%% plot the averaged surrogate data and upper/lower 2.5% of the surrogate data
 corrAndTransDistSurrogateMean = mean(corrAndTransDistSurrogate,3); %calculate the mean of the surrogate data
 for i = 1 : length(distanceBin)-1
     tempIdx = find(corrAndTransDistSurrogateMean(:,2) >= distanceBin(i) & corrAndTransDistSurrogateMean(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
     corrBin(i) = mean(corrAndTransDistSurrogateMean(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
 end
 plot(distanceBin(2:end)/2,corrBin,'k','LineWidth',1.5);  %plot the average correlation coefficient of the distance bin
-hold off
-xlabel('Tangential distance between the transformed centers of ROI pairs');     %add the x-axis label
-ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
-set(gca,'FontSize',16)
-
 
 %% code from other files
 %NVec: unit vector representing the microcolumn axis or apical dendrites
