@@ -12,61 +12,77 @@ questdlg('proceed to the next step','Next Step','OK','OK');
 
 denoiseNet = denoisingNetwork('DnCNN'); %create a denoising network
 apicalDendriteMat = zeros(size(dendriteVolume,1),size(dendriteVolume,2),50); %create a matrix to store the apical dendrite orientation
-orientationTable = zeros(5,3); %the table to save the orientation information of each 10 slices
 
 wb3 = waitbar(0, 'Processing the volume...'); %create a waitbar to show the progress
 for i = 1:50    %depth 150 - 300
-    waitbar(i/50, wb3); %update the waitbar
+    waitbar(i/50, wb3); 
     tempZ = dendriteVolume(:,:,i);
     tempZdenoise1 = denoiseImage(tempZ,denoiseNet); %denoise the image
 
-    tempZdenoise = imbinarize(tempZdenoise1,0.5); %binarize the image
+    tempZdenoise = imbinarize(tempZdenoise1); %binarize the image
     
     %remove the large connected component
-    tempZdenoise = bwareafilt(tempZdenoise,[2 30]); %remove the large connected component
+    tempZdenoise = bwareafilt(tempZdenoise,[0 25]); %remove the large connected component
     apicalDendriteMat(:,:,i) = tempZdenoise;
-    if mod(i,10) == 0
-        tempVolume = apicalDendriteMat(:,:,i-9:i);
-        orientationTable(i/10,:) = table2array(regionprops3(tempVolume,'Orientation'));
-    end
 end
-close(wb3); %close the waitbar
+close(wb3); 
+apicalDendriteMat = double(bwareaopen(apicalDendriteMat,200,18)); %remove the small connected component less than 100 pixels
+%resize the volume with 3-times z-step
+apicalDendriteMat = imresize3(apicalDendriteMat,[size(apicalDendriteMat,1),size(apicalDendriteMat,2),size(apicalDendriteMat,3)*3],'linear');
+
 volumeViewer(apicalDendriteMat); %show the volume of the apical dendrite
 %% check the connected component of the apical dendrite
-connectedApicalDendrite = bwconncomp(apicalDendriteMat,26); %get the connected component of the apical dendrite
+connectedApicalDendrite = bwconncomp(apicalDendriteMat,18); 
 
-%exclude the small connected component
-for i = 1 : connectedApicalDendrite.NumObjects
-    if length(connectedApicalDendrite.PixelIdxList{i}) < 10   %remove the dendrite elements smaller than 10 pixels
-        connectedApicalDendrite.PixelIdxList{i} = {};
-    end
-end
-%remove the empty cell
-connectedApicalDendrite.PixelIdxList = connectedApicalDendrite.PixelIdxList(~cellfun('isempty',connectedApicalDendrite.PixelIdxList));
-%change the value of NumObjects
-connectedApicalDendrite.NumObjects = length(connectedApicalDendrite.PixelIdxList);
-%% since the z-step of each slice is 3um, the the elongated matrix with 3um step
-% 'nearest or linear'
-%apicalDendriteMatwithZstep = imresize3(apicalDendriteMat,[size(apicalDendriteMat,1),size(apicalDendriteMat,2),size(apicalDendriteMat,3)*3],'linear');
-%volumeViewer(apicalDendriteMatwithZstep); %show the volume of the apical dendrite with 3um step
+% calculate the orientation of each apical dendrite
+totalProps = regionprops3(connectedApicalDendrite, 'Orientation', 'Centroid'); % get the orientation and principal axis length of the apical dendrite
 
- 
-%% calculate the orientation of each apical dendrite
-totalOrientation = regionprops3(connectedApicalDendrite,'Orientation'); %get the orientation of the apical dendrite
+%plot the centroid and the orientation of each apical dendrite in a 3d volume
+figure;
+x_quiver = totalProps.Centroid(:,1);
+y_quiver = totalProps.Centroid(:,2);
+z_quiver = totalProps.Centroid(:,3);
 
-%calculate the mean orientation of the apical dendrite
-meanOrientation = mean(totalOrientation.Orientation, 1); %calculate the mean orientation
+u_quiver = cosd(totalProps.Orientation(:,1)).*sind(totalProps.Orientation(:,2));
+v_quiver = sind(totalProps.Orientation(:,1)).*sind(totalProps.Orientation(:,2));
+w_quiver = cosd(totalProps.Orientation(:,2));
+quiver3(x_quiver, y_quiver, z_quiver, u_quiver, v_quiver, w_quiver,'LineWidth', 1);
+axis equal;
 
-% Create rotation matrix from mean orientation
-theta = deg2rad(meanOrientation(1));
-phi = deg2rad(meanOrientation(2));
-psi = deg2rad(meanOrientation(3));
+% manually adjust the oddball element in the quiver plot
 
-Rz = [cos(psi) -sin(psi) 0; sin(psi) cos(psi) 0; 0 0 1];
-Ry = [cos(phi) 0 sin(phi); 0 1 0; -sin(phi) 0 cos(phi)];
-Rx = [1 0 0; 0 cos(theta) -sin(theta); 0 sin(theta) cos(theta)];
+%use the average quiver vector to generate the euler angle
+meanVector = [mean(u_quiver), mean(v_quiver), mean(w_quiver)];
+% Normalize the mean vector
+meanVector = meanVector / norm(meanVector);
 
-rotationMatrix = Rz * Ry * Rx;
+% Calculate the rotation matrix using Rodrigues' rotation formula
+theta = acos(meanVector(3)); % Angle between meanVector and z-axis
+k = [-meanVector(2), meanVector(1), 0]; % Rotation axis (cross product of meanVector and z-axis)
+k = k / norm(k); % Normalize the rotation axis
+
+K = [0 -k(3) k(2); k(3) 0 -k(1); -k(2) k(1) 0]; % Skew-symmetric matrix of k
+
+rotationMatrix = eye(3) + sin(theta) * K + (1 - cos(theta)) * K^2;
+disp('Rotation matrix from mean vector:');
+disp(rotationMatrix);
+
+
+%convert the mean vector to the rotation matrix
+
+%% (alternative) Create rotation matrix from mean orientation
+% meanOrientation = mean(totalProps.Orientation,1); %get the mean orientation of the apical dendrite
+% theta = deg2rad(meanOrientation(1));
+% phi = deg2rad(meanOrientation(2));
+% psi = deg2rad(meanOrientation(3));
+% 
+% Rz = [cos(psi) -sin(psi) 0; sin(psi) cos(psi) 0; 0 0 1];
+% Ry = [cos(phi) 0 sin(phi); 0 1 0; -sin(phi) 0 cos(phi)];
+% Rx = [1 0 0; 0 cos(theta) -sin(theta); 0 sin(theta) cos(theta)];
+% 
+% rotationMatrix = Rz * Ry * Rx;
+% disp('rorationMatrix: ');
+% disp(rotationMatrix)
 
 %% index back to the whole trace 
 ROICorrIdx = cell(height(ROI3DWithTraceTable),4);   %create a cell array to store the index of ROI and the corresponding trace
@@ -74,7 +90,7 @@ ROICorrIdx = cell(height(ROI3DWithTraceTable),4);   %create a cell array to stor
 wb1 = waitbar(0, 'Indexing the ROI and trace...'); %create a waitbar to show the progress
 for i = 1 : height(ROI3DWithTraceTable)
     waitbar(i/height(ROI3DWithTraceTable), wb1); %update the waitbar
-    ROICorrIdx(i,1) = {i};                          %store the index of ROI
+    ROICorrIdx(i,1) = {i};                       %store the index of ROI
     tempROI = ROI3DWithTraceTable.registered_trace_session1(i,1); %get the registered struct of current ROI
 
     if ~isempty(tempROI.selected_Z)             %if the ROI have registered trace label
@@ -87,6 +103,10 @@ for i = 1 : height(ROI3DWithTraceTable)
 
     %assign and calculate the center of each ROI
     tempFP_3D = ROI3DWithTraceTable.FP_3D{i};   %get the footprint of current ROI
+
+    %resize the footprint volume to the same scale as apical dendrite volume (3 times z-step)
+    tempFP_3D = imresize3(tempFP_3D,[size(tempFP_3D,1),size(tempFP_3D,2),size(tempFP_3D,3)*3],'linear');
+
     [x,y,z] = size(tempFP_3D);                   %get the size of the footprint
     [roi_x, roi_y,roi_z] = ind2sub([x,y,z],find(tempFP_3D == 1));     %get the index of the footprint, 1 is the positive pixels for this ROI
     tempCenter = [mean(roi_x), mean(roi_y), mean(roi_z)];              %calculate the center of the footprint
@@ -99,13 +119,16 @@ close(wb1); %close the waitbar
 % Remove the ROIs without trace
 ROICorrIdx(cellfun(@(x) isequal(x, 0), ROICorrIdx(:,2)), :) = []; 
 
+%save the ROICorrIdx as a table 
+ROICorrIdxTable = cell2table(ROICorrIdx,'VariableNames',{'ROIIndex','Trace','Center','TransformedCenter'});
+writetable(ROICorrIdxTable,'ROICorrIdxTable.mat'); %save the table as a .mat file
+
 pairROINum = size(ROICorrIdx,1);        %get the number of ROIs with value
 ROIPairCorrMat = zeros(pairROINum); %create a matrix to save the correlation coefficient of paired ROIs
 ROIPairXYDistMat = zeros(pairROINum); %create a matrix to save the X-Y distance of paired ROIs
 ROIPairXYZDistMat = zeros(pairROINum); %create a matrix to save the X-Y-Z distance of paired ROIs
 ROIPairTransDistantMat = zeros(pairROINum); %create a matrix to save the transformed X-Y distance of paired ROIs
 %% calculate the correlation coefficient of ROIs and show the plot
-
 wb2 = waitbar(0, 'Calculating the correlation coefficient of ROIs...'); %create a waitbar to show the progress
 %plot the cell-pair distance and correlation coefficient on the same figure
 for i = 1 : pairROINum^2
@@ -204,7 +227,7 @@ corrAndTransDist1 = corrAndTransDist(corrAndTransDist(:,2) ~= 0,:);
 corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,3) > 20,:);
 
 scatter(corrAndTransDist1(:,2),corrAndTransDist1(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
-title('Correlation Coefficient and Transformed X-Y Distance of ROIs'); %add the title
+title('Correlation Coefficient and tangential distance of ROIs'); %add the title
 set(gca,'FontSize',16)
 %plot the average correlation coefficient of ROIs with the different distance bin
 distanceBin = 0:5:max(corrAndTransDist1(:,2));       %create the distance bin
@@ -214,6 +237,33 @@ for i = 1 : length(distanceBin)-1
     corrBin(i) = mean(corrAndTransDist1(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
 end
 plot(distanceBin(2:end)/2,corrBin,'g','LineWidth',2);  %plot the average correlation coefficient of the distance bin
+
+%% generate the surrogate data from toe ROI CorrIdx to shuffle the correspondence between the trace and transformed center
+surrogateTimes = 1000; %set the number of surrogate data
+surroMat = zeros(size(corrAndTransDist1,1),3,surrogateTimes); %create a matrix to store the surrogate data            %create a matrix to store the surrogate data
+%first column: correlation coefficient second column: transformed distance  pages: times of surrogate data
+wb4 = waitbar(0, 'Generating the surrogate data...'); %create a waitbar to show the progress
+for i = 1 : surrogateTimes
+    waitbar(i/surrogateTimes, wb4); %update the waitbar
+    for j = 1 : size(corrAndTransDist1,1)
+
+        surroMat(j,1,i) = corr(ROICorrIdx{randi(size(ROICorrIdx,1)),2},ROICorrIdx{randi(size(ROICorrIdx,1)),2}); %randomly shuffle the trace
+        surroMat(j,2,i) = norm(ROICorrIdx{randi(size(ROICorrIdx,1)),4}(1:2) - ROICorrIdx{randi(size(ROICorrIdx,1)),4}(1:2)); %randomly shuffle the transformed center
+        surroMat(j,3,i) = norm(ROICorrIdx{randi(size(ROICorrIdx,1)),3} - ROICorrIdx{randi(size(ROICorrIdx,1)),3}); %calculate the randomized x-y-z center
+    end
+    %sort the tempSurro by the transformed distance
+    tempSurro = sortrows(surroMat(:,:,i),2);
+    %exclude the cell pair with XYZ distance smaller than 20 um
+    tempSurro = tempSurro(tempSurro(:,3) > 20,:);
+    
+    %plot the average corr value of surrogate data in the 5um distance bin
+    for k = 1 : length(distanceBin)-1
+        tempIdx = find(tempSurro(:,2) >= distanceBin(k) & tempSurro(:,2) < distanceBin(k+1)); %find the index of the correlation coefficient in the distance bin
+        corrBin(k) = mean(tempSurro(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
+    end
+    plot(distanceBin(2:end)/2,corrBin,'Color',[0.3 0.3 0.3 0.15],'LineWidth', 0.5);  %plot the average correlation coefficient of the distance bin
+end
+close(wb4); %close the waitbar
 
 %% generate the surrogate data and check the significance of the correlation coefficient at different distance bin
 %randomly shuffle the correspondence between the correlation coefficient and x-y distance for 1000 times
@@ -241,8 +291,8 @@ close(wb4); %close the waitbar
 upperBound = prctile(surrogateCorrBinMat,97.5,2); %calculate the upper bound of the surrogate data
 lowerBound = prctile(surrogateCorrBinMat,2.5,2); %calculate the lower bound of the surrogate data
 
-plot(distanceBin(2:end)/2,upperBound,'k--','LineWidth',1.5);  %plot the upper bound of the surrogate data
-plot(distanceBin(2:end)/2,lowerBound,'k--','LineWidth',1.5);  %plot the lower bound of the surrogate data
+plot(distanceBin(2:end)/2,upperBound,'k--','LineWidth',1);  %plot the upper bound of the surrogate data
+plot(distanceBin(2:end)/2,lowerBound,'k--','LineWidth',1);  %plot the lower bound of the surrogate data
 
 %% plot the averaged surrogate data and upper/lower 2.5% of the surrogate data
 corrAndTransDistSurrogateMean = mean(corrAndTransDistSurrogate,3); %calculate the mean of the surrogate data
