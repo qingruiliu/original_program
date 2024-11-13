@@ -236,11 +236,12 @@ for i = 1 : length(distanceBin)-1
     tempIdx = find(corrAndTransDist1(:,2) >= distanceBin(i) & corrAndTransDist1(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
     corrBin(i) = mean(corrAndTransDist1(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
 end
-plot(distanceBin(2:end)/2,corrBin,'g','LineWidth',2);  %plot the average correlation coefficient of the distance bin
 
-%% generate the surrogate data from toe ROI CorrIdx to shuffle the correspondence between the trace and transformed center
+
+% generate the surrogate data from toe ROI CorrIdx to shuffle the correspondence between the trace and transformed center
 surrogateTimes = 1000; %set the number of surrogate data
-surroMat = zeros(size(corrAndTransDist1,1),3,surrogateTimes); %create a matrix to store the surrogate data            %create a matrix to store the surrogate data
+surroMat = zeros(size(corrAndTransDist1,1),3,surrogateTimes); %create a matrix to store the surrogate data            
+surroBin = zeros(surrogateTimes,length(distanceBin)-1); %create a matrix to store the surrogate data
 %first column: correlation coefficient second column: transformed distance  pages: times of surrogate data
 wb4 = waitbar(0, 'Generating the surrogate data...'); %create a waitbar to show the progress
 for i = 1 : surrogateTimes
@@ -259,91 +260,125 @@ for i = 1 : surrogateTimes
     %plot the average corr value of surrogate data in the 5um distance bin
     for k = 1 : length(distanceBin)-1
         tempIdx = find(tempSurro(:,2) >= distanceBin(k) & tempSurro(:,2) < distanceBin(k+1)); %find the index of the correlation coefficient in the distance bin
-        corrBin(k) = mean(tempSurro(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
+        surroBin(i,k) = mean(tempSurro(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
     end
-    plot(distanceBin(2:end)/2,corrBin,'Color',[0.3 0.3 0.3 0.15],'LineWidth', 0.5);  %plot the average correlation coefficient of the distance bin
+    plot(distanceBin(2:end)/2,surroBin(i,:),'Color',[0.3 0.3 0.3 0.1],'LineWidth', 1);  %plot the average correlation coefficient of the distance bin
 end
 close(wb4); %close the waitbar
 
-%% generate the surrogate data and check the significance of the correlation coefficient at different distance bin
-%randomly shuffle the correspondence between the correlation coefficient and x-y distance for 1000 times
-surrogateTimes = 1000;
-corrAndTransDistSurrogate = zeros(size(corrAndTransDist1,1),2,surrogateTimes); %create a matrix to store the surrogate data
-wb4 = waitbar(0, 'Generating and plotting the surrogate data...'); %create a waitbar to show the progress
-surrogateCorrBinMat = zeros(length(distanceBin)-1,surrogateTimes); %create a matrix to store the average correlation coefficient of each distance bin
-for i = 1 : surrogateTimes
-    waitbar(i/surrogateTimes, wb4); %update the waitbar
-    tempIndex = randperm(size(corrAndTransDist1,1)); %randomly shuffle the index
-    corrAndTransDistSurrogate(:,1,i) = corrAndTransDist1(tempIndex,1); %only shuffle the correlation coefficient
-    corrAndTransDistSurrogate(:,2,i) = corrAndTransDist1(:,2);       %keep the transformed distance unchanged
-    %calculate the average correlation coefficient of the distance bin
-    for j = 1 : length(distanceBin)-1
-        tempIdx = find(corrAndTransDistSurrogate(:,2,i) >= distanceBin(j) & corrAndTransDistSurrogate(:,2,i) < distanceBin(j+1)); %find the index of the correlation coefficient in the distance bin
-        corrBin(j) = mean(corrAndTransDistSurrogate(tempIdx,1,i));  %calculate the average correlation coefficient of the distance bin
-    end
-    surrogateCorrBinMat(:,i) = corrBin; %store the average correlation coefficient of each distance bin
-    %plot the average correlation coefficient of the distance bin
-    plot(distanceBin(2:end)/2,corrBin,'Color',[0.3 0.3 0.3 0.1],'LineWidth', 0.5);  %plot the average correlation coefficient of the distance bin
-end
-close(wb4); %close the waitbar
-
-%plot the highest 2.5% and lowest 2.5% of all the surrogateCorrBinMat
-upperBound = prctile(surrogateCorrBinMat,97.5,2); %calculate the upper bound of the surrogate data
-lowerBound = prctile(surrogateCorrBinMat,2.5,2); %calculate the lower bound of the surrogate data
+% plot the highest 2.5% and lowest 2.5% of all the surrogateCorrBinMat
+surroBin1 = sort(surroBin,1,'ascend'); %sor the surrogate data along the column
+upperBound = surroBin1(ceil(surrogateTimes*0.975),:); %get the upper bound of the surrogate data
+lowerBound = surroBin1(ceil(surrogateTimes*0.025),:); %get the lower bound of the surrogate data
 
 plot(distanceBin(2:end)/2,upperBound,'k--','LineWidth',1);  %plot the upper bound of the surrogate data
 plot(distanceBin(2:end)/2,lowerBound,'k--','LineWidth',1);  %plot the lower bound of the surrogate data
 
-%% plot the averaged surrogate data and upper/lower 2.5% of the surrogate data
-corrAndTransDistSurrogateMean = mean(corrAndTransDistSurrogate,3); %calculate the mean of the surrogate data
-for i = 1 : length(distanceBin)-1
-    tempIdx = find(corrAndTransDistSurrogateMean(:,2) >= distanceBin(i) & corrAndTransDistSurrogateMean(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
-    corrBin(i) = mean(corrAndTransDistSurrogateMean(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
-end
-plot(distanceBin(2:end)/2,corrBin,'k','LineWidth',1.5);  %plot the average correlation coefficient of the distance bin
+%plot the mean of the surrogate data
+meanSurroBin = mean(surroBin,1); %calculate the mean of the surrogate data
+plot(distanceBin(2:end)/2,meanSurroBin,'k','LineWidth',1.5);  %plot the average correlation coefficient of the distance bin
+plot(distanceBin(2:end)/2,corrBin,'Color',[0.1 0.7 0.1],'LineWidth',2);  %plot the average correlation coefficient of the distance bin
+hold off
 
-%% code from other files
-%NVec: unit vector representing the microcolumn axis or apical dendrites
-ClmAxisVec=NVec; 
-
-ClmAxisVec(3)=sqrt(1-(ClmAxisVec(1)^2+ClmAxisVec(2)^2));
-[tgtrng,tgtang] = rangeangle(ClmAxisVec');
-
-TempAngle=[tgtang(1),tgtang(2)-90];
-
-Theta2=deg2rad(-1*TempAngle(1));
-Phi2=deg2rad(-1*TempAngle(2));
-ClmPrjMtx1=[cos(Theta2) -sin(Theta2);sin(Theta2) cos(Theta2)];
-ClmPrjMtx2=[cos(Phi2) -sin(Phi2);sin(Phi2) cos(Phi2)];
-
-TempVec=ClmAxisVec;
-
-Temp4=ClmPrjMtx1*[TempVec(1);TempVec(2)];
-TempVec(1)=Temp4(1);
-TempVec(2)=Temp4(2);
-Temp3=ClmPrjMtx2*[TempVec(1);TempVec(3)];
-TempVec(1)=Temp3(1);
-TempVec(3)=Temp3(2);
-[temprng,tempang] = rangeangle(TempVec');
-
-disp('ClmAxisVecの回転後の行列')
-TempVec
-
-%%%
-
-TempPosUM1=Pos; %Pos: 3D coordinates of GCaMP6 cells
+%% make the bin plot of the surrogate distribution and the real data
 
 
-tTempPosUM1=TempPosUM1;
-h = waitbar(0,'--座標回転中1--');
-for iCell=1:size(TempPosUM1,1)
-    Temp1=ClmPrjMtx1*TempPosUM1(iCell,1:2)';
-    tTempPosUM1(iCell,1)=Temp1(1);
-    tTempPosUM1(iCell,2)=Temp1(2);
-    Temp2=ClmPrjMtx2*[tTempPosUM1(iCell,1);TempPosUM1(iCell,3)];
-    tTempPosUM1(iCell,1)=Temp2(1);
-    tTempPosUM1(iCell,3)=Temp2(2);
+surroBin10 = surroBin(:,find(distanceBin <= 10)); %get the surrogate data <10 um bins
+surroBin20 = surroBin(:,find(distanceBin > 10 & distanceBin <= 20 )); 
+surroBin30 = surroBin(:,find(distanceBin > 20 & distanceBin <= 30 )); 
+surroBin40 = surroBin(:,find(distanceBin > 30 & distanceBin <= 40 )); 
 
-    waitbar(iCell/size(tTempPosUM1,1));
-end
-close(h)
+surroBin10mean = mean(surroBin10,2); %get the mean of the surrogate data <10 um bins
+surroBin20mean = mean(surroBin20,2); 
+surroBin30mean = mean(surroBin30,2); 
+surroBin40mean = mean(surroBin40,2); 
+
+diffSurro10_20 = surroBin10mean - surroBin20mean; %get the difference of the mean of the surrogate data <10 um bins and 10-20 um bins
+diffSurro10_30 = surroBin10mean - surroBin30mean;
+diffSurro10_40 = surroBin10mean - surroBin40mean;
+
+realCorrBin10 = corrBin(find(distanceBin <= 10)); %get the real data <10 um bins
+realCorrBin20 = corrBin(find(distanceBin > 10 & distanceBin <= 20 ));
+realCorrBin30 = corrBin(find(distanceBin > 20 & distanceBin <= 30 ));
+realCorrBin40 = corrBin(find(distanceBin > 30 & distanceBin <= 40 ));
+
+diffRealCorrBin10_20 = mean(realCorrBin10) - mean(realCorrBin20); %get the difference of the mean of the real data <10 um bins and 10-20 um bins
+diffRealCorrBin10_30 = mean(realCorrBin10) - mean(realCorrBin30);
+diffRealCorrBin10_40 = mean(realCorrBin10) - mean(realCorrBin40);
+
+%plot the histogram of the difference of the mean of the surrogate data
+
+figure;
+histogram(diffSurro10_20,20,'FaceColor',[0.8 0.8 0.8]);
+xlabel('CC_b_i_n_<_1_0_u_m - CC_b_i_n_1_0_-_2_0_u_m');
+ylabel('Number of Surrogates');
+xlim([-0.02 0.05])
+ylim([0 150])
+hold on
+xline(diffRealCorrBin10_20,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
+hold off
+set(gca,'FontSize',16)
+
+figure;
+histogram(diffSurro10_30,20,'FaceColor',[0.8 0.8 0.8]);
+xlabel('CC_b_i_n_<_1_0_u_m - CC_b_i_n_2_0_-_3_0_u_m');
+ylabel('Number of Surrogates');
+xlim([-0.02 0.05])
+ylim([0 200])
+hold on
+xline(diffRealCorrBin10_30,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
+hold off
+set(gca,'FontSize',16)
+
+figure;
+histogram(diffSurro10_40,20,'FaceColor',[0.8 0.8 0.8]);
+xlabel('CC_b_i_n_<_1_0_u_m - CC_b_i_n_3_0_-_4_0_u_m');
+ylabel('Number of Surrogates');
+xlim([-0.02 0.05])
+ylim([0 150])
+hold on 
+xline(diffRealCorrBin10_40,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
+hold off
+set(gca,'FontSize',16)
+
+%% plot the histogram of 20-30,20-40,30-40
+diffSurro20_30 = surroBin20mean - surroBin30mean; %get the difference of the mean of the surrogate data 20-30 um bins and 30-40 um bins
+diffSurro20_40 = surroBin20mean - surroBin40mean;
+diffSurro30_40 = surroBin30mean - surroBin40mean;
+
+realCorrBin20_30 = mean(realCorrBin20) - mean(realCorrBin30); %get the difference of the mean of the real data 20-30 um bins and 30-40 um bins
+realCorrBin20_40 = mean(realCorrBin20) - mean(realCorrBin40);
+realCorrBin30_40 = mean(realCorrBin30) - mean(realCorrBin40);
+
+figure;
+histogram(diffSurro20_30,20,'FaceColor',[0.8 0.8 0.8]);
+xlabel('CC_b_i_n_1_0_-_2_0_u_m - CC_b_i_n_2_0_-_3_0_u_m');
+ylabel('Number of Surrogates');
+xlim([-0.02 0.05])
+ylim([0 150])
+hold on
+xline(realCorrBin20_30,'-','Color',[0.7 0.1 0.1],'LineWidth',2);
+hold off
+set(gca,'FontSize',16)
+
+figure;
+histogram(diffSurro20_40,20,'FaceColor',[0.8 0.8 0.8]);
+xlabel('CC_b_i_n_1_0_-_2_0_u_m - CC_b_i_n_3_0_-_4_0_u_m');
+ylabel('Number of Surrogates');
+xlim([-0.02 0.05])
+ylim([0 150])
+hold on
+xline(realCorrBin20_40,'-','Color',[0.7 0.1 0.1],'LineWidth',2);
+hold off
+set(gca,'FontSize',16)
+
+figure;
+histogram(diffSurro30_40,20,'FaceColor',[0.8 0.8 0.8]);
+xlabel('CC_b_i_n_2_0_-_3_0_u_m - CC_b_i_n_3_0_-_4_0_u_m');
+ylabel('Number of Surrogates');
+xlim([-0.02 0.05])
+ylim([0 150])
+hold on
+xline(realCorrBin30_40,'-','Color',[0.7 0.1 0.1],'LineWidth',2);
+hold off
+set(gca,'FontSize',16)
