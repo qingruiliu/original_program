@@ -5,9 +5,9 @@ ROIRegisteredNumber = zeros(ROI3DNum,1);  % the matrix to save the registered st
 ROIRegisteredStatus = zeros(ROI3DNum,1);
 
 sessionNum = questdlg('Which session of data you want to check:','session check',...
-                                   'session1','session2','session3','session1');      %choose the session to check
+                                   'S1','S2','S3','S1');      %choose the session to check
   
-sessionStr = append('registered_trace_',sessionNum);                                  %create the session string
+sessionStr = append(sessionNum,'_registered');    
 
 timeLagM3 = [2.666666 0.9 4.1666666];      %the imaging-behavioral lapse of 3 sessions of M3
 
