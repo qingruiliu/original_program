@@ -2,9 +2,9 @@
 
 %choose the session currently working with
 sessionNum = questdlg('Which session of data are you working with:','session check',...
-                                   'session1','session2','session3','session1');      %choose the session to check
+                                   'S1','S2','S3','S1');      %choose the session to check
   
-sessionStr = append('registered_trace_',sessionNum);        %11.5 update, choose the session working with
+sessionStr = append(sessionNum,'_registered');        %11.5 update, choose the session working with
 % load the cellReg result and only keep the information with 2P info
 disp('----------choose the cellReg output .mat----------')
 [CROut,CRpath] = uigetfile('cellRegistered*.mat');

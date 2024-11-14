@@ -1,6 +1,7 @@
 %% step1 load the manually adjusted 3D ROI .tif file from cellPose
 %the feature-added version of this program is used.
-[fileName,path] = uigetfile('.tif');
+questdlg('Please select the 3D ROI .tif file from cellPose','3D ROI file selection','OK','OK');
+[fileName,path] = uigetfile('*masks.tif');
 cd(path)
 cellPoseVolume = double(tiffreadVolume(fileName));
 
@@ -57,8 +58,9 @@ clearvars tableTitle tableTitleTypes
 startZ = str2double(extractBefore(name,'-'));  %start Z plane number
 endZ = startZ + sliceN;          %end Z plane number
 
-
+wb1 = waitbar(0,'0/0','Name','saving the 3D ROI data...');
 for i = 1 : sliceN
+    waitbar(i/sliceN,wb1,append(num2str(i),'/',num2str(sliceN)));
     %the 1st z-plane is truncated since python start from 0 and MATLAB is 1
     tempPlane = filledVolume(:,:,i);
     tempROIList = unique(tempPlane);
@@ -82,7 +84,7 @@ for i = 1 : sliceN
     coordinateTable.ROIfootprints(i) = {tempCell};
     coordinateTable.cellRegInput(i) = {permute(tempCellRegInput,[3 2 1])};
 end
-
+close(wb1)
 save('coordinateTable.mat','coordinateTable','-v7.3')
 save('ROI3DWithTraceTable.mat','ROI3DWithTraceTable','-v7.3')
 
@@ -99,10 +101,14 @@ for i = 1 : length(FPZ50)
 end
 
 %% save the individual cellReg input as individual .mat file
+questdlg('Please select the folder to save the sliced cellPose ROI','cellReg input saving','OK','OK');
+path = uigetdir();
+cd(path)
 
 for i = 1 : coordinateTable.index(end)
-
     cellRegInput = coordinateTable.cellRegInput{i};
     tempSaveStr = append('Z',num2str(coordinateTable.planeN(i)),'.mat');
     save(tempSaveStr,"cellRegInput");
 end
+
+clearvars -except *Table
