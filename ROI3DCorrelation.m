@@ -214,6 +214,7 @@ ROICorrIdxTable.TransformedCenter = transformedCentroids;
 ROICorrIdx = table2cell(ROICorrIdxTable);
 ROICorrIdx(cellfun(@(x) isequal(x, 0), ROICorrIdx(:,2)), :) = []; 
 
+save('ROICenterAndTraceTable.mat','ROICorrIdxTable','-v7.3')
 %% calculate the correlation coefficient of ROIs and show the plot
 pairROINum = size(ROICorrIdx,1);        %get the number of ROIs with value
 ROIPairCorrMat = zeros(pairROINum); %create a matrix to save the correlation coefficient of paired ROIs
@@ -273,7 +274,7 @@ set(gca,'FontSize',16)
 figure;
 hold on
 xlim([0 50]);
-ylim([-0.1 0.2]);
+ylim([-0.05 0.2]);
 
 corrAndDist(:,1) = ROIPairCorrMat(:);   %reshape the correlation coefficient matrix to a column vector
 corrAndDist(:,2) = ROIPairXYDistMat(:);
@@ -283,11 +284,13 @@ corrAndDist(:,3) = ROIPairXYZDistMat(:);
 corrAndDist = sortrows(corrAndDist,2);
 
 corrAndDist1 = corrAndDist(corrAndDist(:,2) ~= 0,:); %exclude the diagonal element
+corrAndDist1 = corrAndDist1(corrAndDist1(:,1) ~= 1,:);
+corrAndDist1(1:2:end,:) = [];
 %exclude the cell pair with XYZ distance smaller than 30 um
-corrAndDist1 = corrAndDist1(corrAndDist1(:,3) > 30,:);
+corrAndDist1 = corrAndDist1(corrAndDist1(:,3) > 40,:);
 
 scatter(corrAndDist1(:,2),corrAndDist1(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
-title('Correlation Coefficient and X-Y Distance of ROIs'); %add the title
+title('CC and original distance of ROI pairs'); %add the title
 set(gca,'FontSize',16)
 %plot the average correlation coefficient of ROIs with the different distance bin
 distanceBin = 0:5:max(corrAndDist1(:,2));       %create the distance bin
@@ -315,11 +318,13 @@ corrAndTransDist(:,3) = ROIPairXYZDistMat(:);
 corrAndTransDist = sortrows(corrAndTransDist,2);
 %exclude the diagonal element
 corrAndTransDist1 = corrAndTransDist(corrAndTransDist(:,2) ~= 0,:);
+corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,1) ~= 1,:);
+corrAndTransDist1(1:2:end,:) = [];
 %exclude the cell pair with XYZ distance smaller than 30 um
-corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,3) > 30,:);
+corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,3) > 40,:);
 
 scatter(corrAndTransDist1(:,2),corrAndTransDist1(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
-title('Correlation Coefficient and tangential distance of ROIs'); %add the title
+title('CC and  distance of ROI pairs'); %add the title
 set(gca,'FontSize',16)
 %plot the average correlation coefficient of ROIs with the different distance bin
 distanceBin = 0:5:max(corrAndTransDist1(:,2));       %create the distance bin
@@ -478,5 +483,5 @@ hold off
 set(gca,'FontSize',16)
 
 %% save the corrAndTransDist variable
-
-save('corrAndTransDist_M9.mat','corrAndTransDist');
+save('corrAndDist_M17.mat','corrAndDist');
+save('corrAndTransDist_M17.mat','corrAndTransDist');
