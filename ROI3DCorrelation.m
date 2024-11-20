@@ -284,10 +284,10 @@ corrAndDist(:,3) = ROIPairXYZDistMat(:);
 corrAndDist = sortrows(corrAndDist,2);
 
 corrAndDist1 = corrAndDist(corrAndDist(:,2) ~= 0,:); %exclude the diagonal element
-corrAndDist1 = corrAndDist1(corrAndDist1(:,1) ~= 1,:);
-corrAndDist1(1:2:end,:) = [];
+corrAndDist1 = corrAndDist1(corrAndDist1(:,1) <=0.5,:);
+corrAndDist1(1:2:end,:) = [];               %exclude the cell pair with the same ROI        
 %exclude the cell pair with XYZ distance smaller than 30 um
-corrAndDist1 = corrAndDist1(corrAndDist1(:,3) > 40,:);
+corrAndDist1 = corrAndDist1(corrAndDist1(:,3) > 30,:);
 
 scatter(corrAndDist1(:,2),corrAndDist1(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
 title('CC and original distance of ROI pairs'); %add the title
@@ -318,10 +318,10 @@ corrAndTransDist(:,3) = ROIPairXYZDistMat(:);
 corrAndTransDist = sortrows(corrAndTransDist,2);
 %exclude the diagonal element
 corrAndTransDist1 = corrAndTransDist(corrAndTransDist(:,2) ~= 0,:);
-corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,1) ~= 1,:);
-corrAndTransDist1(1:2:end,:) = [];
+corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,1) <= 0.5,:);
+corrAndTransDist1(1:2:end,:) = [];                          %exclude the cell pair with the same ROI
 %exclude the cell pair with XYZ distance smaller than 30 um
-corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,3) > 40,:);
+corrAndTransDist1 = corrAndTransDist1(corrAndTransDist1(:,3) > 30,:);
 
 scatter(corrAndTransDist1(:,2),corrAndTransDist1(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
 title('CC and  distance of ROI pairs'); %add the title
