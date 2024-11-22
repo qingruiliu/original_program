@@ -1,3 +1,14 @@
+%% ask for the important parameters setting
+
+dlgTitle = 'Set the threshold parameters';
+promptPara = {'\fontsize{20}Set the CC threshold','\fontsize{20}set the spatial distance threshold'};
+fieldSize = [1 100;1 100];
+defInput = {'0.5','20'};
+thresholds = inputdlg(promptPara,dlgTitle,fieldSize,defInput);
+
+ccThreshold = str2double(thresholds{1});
+spatialThreshold = str2double(thresholds{2});
+
 %% summarize and analyze the data from 3 mice
 disp('----------choose the corrAndDist.mat of the 1st animal(M3)----------')
 [fileName,path] = uigetfile('corrAndD*.mat');
@@ -36,13 +47,13 @@ corrAndDist_all = [CorrAndDist_M3; CorrAndDist_M9; CorrAndDist_M17];
 corrAndDist_all = corrAndDist_all(corrAndDist_all(:,2) ~= 0,:);
 
 %exclude the cell pair with more than 0.5 CC
-corrAndDist_all = corrAndDist_all(corrAndDist_all(:,1) <= 0.7,:);
+corrAndDist_all = corrAndDist_all(corrAndDist_all(:,1) <= ccThreshold,:);
 
 %sort the data based on the second column(untransformed XY distance)
 corrAndDist_all = sortrows(corrAndDist_all,2);
 
 %exclude the cell pair with xyz distance less than 30
-corrAndDist_all1 = corrAndDist_all(corrAndDist_all(:,3) > 20,:);
+corrAndDist_all1 = corrAndDist_all(corrAndDist_all(:,3) > spatialThreshold,:);
 
 %% plot the untransformed distance of the cell pairs
 figure;
@@ -67,6 +78,7 @@ ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
 set(gca,'FontSize',16)
 
 %% summarize and analyze the data from 3 mice
+
 disp('----------choose the corrAndTransDist.mat of the 1st animal(M3)----------')
 [fileName,path] = uigetfile('corrAndTrans*.mat');
 cd(path)
@@ -104,12 +116,12 @@ corrAndTransDist_all = [CorrAndTransDist_M3; CorrAndTransDist_M9; CorrAndTransDi
 corrAndTransDist_all = corrAndTransDist_all(corrAndTransDist_all(:,2) ~= 0,:);
 
 %exclude the cell pair with 1 correlation coefficient
-corrAndTransDist_all = corrAndTransDist_all(corrAndTransDist_all(:,1) <= 0.5,:);
+corrAndTransDist_all = corrAndTransDist_all(corrAndTransDist_all(:,1) <= ccThreshold,:);
 %sort the data based on the second column(transDist)
 corrAndTransDist_all = sortrows(corrAndTransDist_all,2);
 
 %exclude the cell pair with xyz distance less than 30
-corrAndTransDist_all1 = corrAndTransDist_all(corrAndTransDist_all(:,3) > 20,:);
+corrAndTransDist_all1 = corrAndTransDist_all(corrAndTransDist_all(:,3) > spatialThreshold,:);
 
 figure;
 hold on
@@ -154,53 +166,51 @@ ROICorrIdxTable_M17 = ROICorrIdxTable;
 ROINum_M17 = size(ROICorrIdxTable,1);
 
 %% pre-set the variable for surrogate data
-
 surrogateTimes = 1000;
-surroMat = zeros(ROINum_M3^2 + ROINum_M9^2 + ROINum_M17^2, 3, surrogateTimes);
+surroMat = zeros(ROINum_M3*(ROINum_M3-1)/2 + ROINum_M9*(ROINum_M9-1)/2 + ROINum_M17*(ROINum_M17-1)/2, 3, surrogateTimes);
 
 wb = waitbar(0, 'Generating the surrogate data...');
 parfor i = 1:surrogateTimes
     %M3
-    randIdx_M3 = randi(ROINum_M3, ROINum_M3, 4);   %generate the 4-column random index for the 1st animal
+    randIdx_M3 = randi(ROINum_M3, ROINum_M3*(ROINum_M3-1)/2, 4);   %generate the 4-column random index for the 1st animal
     traceSurro_M3 = ROICorrIdxTable_M3.Trace(randIdx_M3(:, 1:2));    %get the trace of the random index
-    %centerSurro_M3 = ROICorrIdxTable_M3.Center(randIdx_M3(:, 3:4), :);  %center and transCenter are using the same index but different from trace index
-    transCenterSurro_M3 = ROICorrIdxTable_M3.TransformedCenter(randIdx_M3(:, 3:4), :);
+    transCenterSurro_M3_1 = ROICorrIdxTable_M3.TransformedCenter(randIdx_M3(:,3), :);
+    transCenterSurro_M3_2 = ROICorrIdxTable_M3.TransformedCenter(randIdx_M3(:,4), :);
 
     %calculate the correlation coefficient between the every pair between column1 and column2
-    corrSurro_M3 = zeros(ROINum_M3^2, 3);
-    for j = 1:ROINum_M3^2
-        [row, col] = ind2sub([ROINum_M3, ROINum_M3], j);
-        corrSurro_M3(j, 1) = corr(traceSurro_M3{row, 1}, traceSurro_M3{col, 2}); %calculate the correlation coefficient between the trace of the pair
-        corrSurro_M3(j, 2) = norm(transCenterSurro_M3(row, 1:2) - transCenterSurro_M3(ROINum_M3 + col, 1:2)); %calculate the tangential distance between the pair
-        corrSurro_M3(j, 3) = norm(transCenterSurro_M3(row, :) - transCenterSurro_M3(ROINum_M3 + col, :)); %calculate the untransformed XYZ distance between the pair
+    corrSurro_M3 = zeros(ROINum_M3*(ROINum_M3-1)/2, 3);
+    for j = 1:ROINum_M3*(ROINum_M3-1)/2
+        corrSurro_M3(j, 1) = corr(traceSurro_M3{j, 1}, traceSurro_M3{j, 2}); %calculate the correlation coefficient between the trace of the pair
+        corrSurro_M3(j, 2) = norm(transCenterSurro_M3_1(j,1:2) - transCenterSurro_M3_2(j,1:2)); %calculate the tangential distance between the pair
+        corrSurro_M3(j, 3) = norm(transCenterSurro_M3_1(j,:) - transCenterSurro_M3_2(j,:)); %calculate the untransformed XYZ distance between the pair
     end
 
     %M9
-    randIdx_M9 = randi(ROINum_M9, ROINum_M9, 4);   %generate the 4-column random index for the 2nd animal
+    randIdx_M9 = randi(ROINum_M9, ROINum_M9*(ROINum_M9-1)/2, 4);   %generate the 4-column random index for the 2nd animal
     traceSurro_M9 = ROICorrIdxTable_M9.Trace(randIdx_M9(:, 1:2));    %get the trace of the random index
-    %centerSurro_M9 = ROICorrIdxTable_M9.Center(randIdx_M9(:, 3:4), :);  %center and transCenter are using the same index but different from trace index   
-    transCenterSurro_M9 = ROICorrIdxTable_M9.TransformedCenter(randIdx_M9(:, 3:4), :);
+    transCenterSurro_M9_1 = ROICorrIdxTable_M9.TransformedCenter(randIdx_M9(:,3), :);
+    transCenterSurro_M9_2 = ROICorrIdxTable_M9.TransformedCenter(randIdx_M9(:,4), :);
+
     %calculate the correlation coefficient between the every pair between column1 and column2
-    corrSurro_M9 = zeros(ROINum_M9^2, 3);
-    for j = 1:ROINum_M9^2
-        [row, col] = ind2sub([ROINum_M9, ROINum_M9], j);
-        corrSurro_M9(j, 1) = corr(traceSurro_M9{row, 1}, traceSurro_M9{col, 2}); %calculate the correlation coefficient between the trace of the pair
-        corrSurro_M9(j, 2) = norm(transCenterSurro_M9(row, 1:2) - transCenterSurro_M9(ROINum_M9 + col, 1:2)); %calculate the tangential distance between the pair
-        corrSurro_M9(j, 3) = norm(transCenterSurro_M9(row, :) - transCenterSurro_M9(ROINum_M9 + col, :)); %calculate the untransformed XYZ distance between the pair
+    corrSurro_M9 = zeros(ROINum_M9*(ROINum_M9-1)/2, 3);
+    for j = 1:ROINum_M9*(ROINum_M9-1)/2
+        corrSurro_M9(j, 1) = corr(traceSurro_M9{j, 1}, traceSurro_M9{j, 2}); %calculate the correlation coefficient between the trace of the pair
+        corrSurro_M9(j, 2) = norm(transCenterSurro_M9_1(j,1:2) - transCenterSurro_M9_2(j,1:2)); %calculate the tangential distance between the pair
+        corrSurro_M9(j, 3) = norm(transCenterSurro_M9_1(j,:) - transCenterSurro_M9_2(j,:)); %calculate the untransformed XYZ distance between the pair
     end
 
     %M17
-    randIdx_M17 = randi(ROINum_M17, ROINum_M17, 4);   %generate the 4-column random index for the 3rd animal
+    randIdx_M17 = randi(ROINum_M17, ROINum_M17*(ROINum_M17-1)/2, 4);   %generate the 4-column random index for the 3rd animal
     traceSurro_M17 = ROICorrIdxTable_M17.Trace(randIdx_M17(:, 1:2));    %get the trace of the random index
-    %centerSurro_M17 = ROICorrIdxTable_M17.Center(randIdx_M17(:, 3:4), :);  %center and transCenter are using the same index but different from trace index
-    transCenterSurro_M17 = ROICorrIdxTable_M17.TransformedCenter(randIdx_M17(:, 3:4), :);
+    transCenterSurro_M17_1 = ROICorrIdxTable_M17.TransformedCenter(randIdx_M17(:,3), :);
+    transCenterSurro_M17_2 = ROICorrIdxTable_M17.TransformedCenter(randIdx_M17(:,4), :);
+
     %calculate the correlation coefficient between the every pair between column1 and column2
-    corrSurro_M17 = zeros(ROINum_M17^2, 3);
-    for j = 1:ROINum_M17^2
-        [row, col] = ind2sub([ROINum_M17, ROINum_M17], j);
-        corrSurro_M17(j, 1) = corr(traceSurro_M17{row, 1}, traceSurro_M17{col, 2}); %calculate the correlation coefficient between the trace of the pair
-        corrSurro_M17(j, 2) = norm(transCenterSurro_M17(row, 1:2) - transCenterSurro_M17(ROINum_M17 + col, 1:2)); %calculate the tangential distance between the pair
-        corrSurro_M17(j, 3) = norm(transCenterSurro_M17(row, :) - transCenterSurro_M17(ROINum_M17 + col, :)); %calculate the untransformed XYZ distance between the pair
+    corrSurro_M17 = zeros(ROINum_M17*(ROINum_M17-1)/2, 3);
+    for j = 1:ROINum_M17*(ROINum_M17-1)/2
+        corrSurro_M17(j, 1) = corr(traceSurro_M17{j, 1}, traceSurro_M17{j, 2}); %calculate the correlation coefficient between the trace of the pair
+        corrSurro_M17(j, 2) = norm(transCenterSurro_M17_1(j,1:2) - transCenterSurro_M17_2(j,1:2)); %calculate the tangential distance between the pair
+        corrSurro_M17(j, 3) = norm(transCenterSurro_M17_1(j,:) - transCenterSurro_M17_2(j,:)); %calculate the untransformed XYZ distance between the pair
     end
 
     surroMat(:, :, i) = [corrSurro_M3; corrSurro_M9; corrSurro_M17];
@@ -216,15 +226,15 @@ for i = 1:surrogateTimes
     waitbar(i/surrogateTimes,wb2);
 
     tempSurroMat = surroMat(:,:,i);
-    tempSurroMat = tempSurroMat(tempSurroMat(:,3) > 20,:);   %exclude the cell pair with xyz distance less than 30
-    tempSurroMat =tempSurroMat(tempSurroMat(:,1) <= 0.5,:);  %exclude the cell pair with more than 0.5 CC
-    tempSurroMat(1:2:end,:) = [];                            %delete all the odd rows
+    tempSurroMat = tempSurroMat(tempSurroMat(:,3) > spatialThreshold,:);   %exclude the cell pair with xyz distance less than 30
+    tempSurroMat =tempSurroMat(tempSurroMat(:,1) <= ccThreshold,:);  %exclude the cell pair with more than 0.5 CC
+    %tempSurroMat(1:2:end,:) = [];                            %delete all the odd rows
 
     for j = 1 : length(surrodistanceBin)-1
         tempIdx = find(tempSurroMat(:,2) >= surrodistanceBin(j) & tempSurroMat(:,2) < surrodistanceBin(j+1)); %find the index of the correlation coefficient in the distance bin
         surrocorrBin(i,j) = mean(tempSurroMat(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
     end
-    plot(surrodistanceBin(1:end-1),surrocorrBin(i,:),'Color',[0.4 0.4 0.4 0.1],'LineWidth',0.5);  %plot the average correlation coefficient of the distance bin
+    plot(surrodistanceBin(1:end-1),surrocorrBin(i,:),'Color',[0.4 0.4 0.4 0.1],'LineWidth',1);  %plot the average correlation coefficient of the distance bin
 end
 close(wb2)
 
