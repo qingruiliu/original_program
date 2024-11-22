@@ -125,8 +125,10 @@ corrAndTransDist_all1 = corrAndTransDist_all(corrAndTransDist_all(:,3) > spatial
 
 figure;
 hold on
-xlim([0 50]);
+xlim([0 70]);
+xticks(0:20:60);
 ylim([-0.03 0.12]);
+yticks(0:0.05:0.1);
 
 %scatter(corrAndTransDist_all1(:,2),corrAndTransDist_all1(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
 title('CC and tangential Distance of ROIs in 3 mice'); %add the title
@@ -139,8 +141,9 @@ for i = 1 : length(distanceBin)-1
     corrBin(i) = mean(corrAndTransDist_all1(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
 end
 plot(distanceBin(1:end-1)+2.5,corrBin,'Color',[0.1 0.7 0.1],'LineWidth',4);  %plot the average correlation coefficient of the distance bin
-xlabel('Distance between the paired ROI centroids');     %add the x-axis label
-ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
+xlabel('Tangential distance (µm)');     %add the x-axis label
+ylabel('Average correlation');          %add the y-axis label
+
 set(gca,'FontSize',16)
 
 %% load the table of 3 mice and generate the surrogate data 
@@ -234,7 +237,7 @@ for i = 1:surrogateTimes
         tempIdx = find(tempSurroMat(:,2) >= surrodistanceBin(j) & tempSurroMat(:,2) < surrodistanceBin(j+1)); %find the index of the correlation coefficient in the distance bin
         surrocorrBin(i,j) = mean(tempSurroMat(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
     end
-    plot(surrodistanceBin(1:end-1),surrocorrBin(i,:),'Color',[0.4 0.4 0.4 0.1],'LineWidth',1);  %plot the average correlation coefficient of the distance bin
+    plot(surrodistanceBin(1:end-1)+2.5,surrocorrBin(i,:),'Color',[0.5 0.5 0.5 0.2],'LineWidth',2);  %plot the average correlation coefficient of the distance bin
 end
 close(wb2)
 
@@ -281,7 +284,7 @@ diffRealCorrBin10_40 = mean(realCorrBin10) - mean(realCorrBin40);
 
 figure;
 histogram(diffSurro10_20,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_b_i_n_<_1_0_u_m - CC_b_i_n_1_0_-_2_0_u_m');
+xlabel('CC_<_1_0 _u_m - CC_1_0_-_2_0 _u_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.1])
 ylim([0 200])
@@ -292,7 +295,7 @@ set(gca,'FontSize',16)
 
 figure;
 histogram(diffSurro10_30,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_b_i_n_<_1_0_u_m - CC_b_i_n_2_0_-_3_0_u_m');
+xlabel('CC_<_1_0 _u_m - CC_2_0_-_3_0 _u_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.1])
 ylim([0 200])
@@ -303,7 +306,7 @@ set(gca,'FontSize',16)
 
 figure;
 histogram(diffSurro10_40,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_b_i_n_<_1_0_u_m - CC_b_i_n_3_0_-_4_0_u_m');
+xlabel('CC_<_1_0 _u_m - CC_3_0_-_4_0 _u_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.1])
 ylim([0 200])
@@ -323,7 +326,7 @@ realCorrBin30_40 = mean(realCorrBin30) - mean(realCorrBin40);
 
 figure;
 histogram(diffSurro20_30,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_b_i_n_1_0_-_2_0_u_m - CC_b_i_n_2_0_-_3_0_u_m');
+xlabel('CC_1_0_-_2_0 _u_m - CC_2_0_-_3_0 _u_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.05])
 ylim([0 200])
@@ -334,7 +337,7 @@ set(gca,'FontSize',16)
 
 figure;
 histogram(diffSurro20_40,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_b_i_n_1_0_-_2_0_u_m - CC_b_i_n_3_0_-_4_0_u_m');
+xlabel('CC_1_0_-_2_0 _u_m - CC_3_0_-_4_0 _u_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.05])
 ylim([0 200])
@@ -345,7 +348,7 @@ set(gca,'FontSize',16)
 
 figure;
 histogram(diffSurro30_40,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_b_i_n_2_0_-_3_0_u_m - CC_b_i_n_3_0_-_4_0_u_m');
+xlabel('CC_2_0_-_3_0 _u_m - CC_3_0_-_4_0 _u_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.05])
 ylim([0 200])
