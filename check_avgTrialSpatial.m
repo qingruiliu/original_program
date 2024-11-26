@@ -85,10 +85,11 @@ hitCorrMat_M3(:,5:6) = hitCenterMat_M3;
 
 
 hitCorrAndDist_M3 = zeros(size(pairs_M3,1),3); %preset the matrix to store the correlation coefficient and spatial distance of each pair
-
+stimAndRWIdx = find(commonTimeAxis >= 0 & commonTimeAxis < 5)'; %index of the stimulus and reward period
 % calculate the correlation coefficient of all possible pairs
 for i = 1:size(pairs_M3,1)
-    hitCorrAndDist_M3(i,1) = corr(hitCorrMat_M3{i,1},hitCorrMat_M3{i,2}); %1st column: correlation coefficient
+    %only calculate the correlation coefficient during 0~5 seconds
+    hitCorrAndDist_M3(i,1) = corr(hitCorrMat_M3{i,1}(stimAndRWIdx),hitCorrMat_M3{i,2}(stimAndRWIdx)); %1st column: correlation coefficient
     hitCorrAndDist_M3(i,2) = norm(hitCenterMat_M3{i,1}(1:2) - hitCenterMat_M3{i,2}(1:2)); %2nd column: tangential distance
     hitCorrAndDist_M3(i,3) = norm(hitCenterMat_M3{i,1} - hitCenterMat_M3{i,2}); %3rd column: XYZ spatial distance
 end
