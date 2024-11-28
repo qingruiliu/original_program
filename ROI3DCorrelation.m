@@ -163,7 +163,7 @@ meanPoint = mean(centroidsMat,1); %get the mean point of the fitting plane
 
 %visualize the data and the fitting plane
 figure;
-scatter3(centroidsX, centroidsY, centroidsZ,'k','filled');
+scatter3(centroidsX, centroidsY, centroidsZ,30,[0.3 0.3 0.3],'filled');
 hold on;
 
 %define the plane given the PCA normal vector
@@ -176,11 +176,22 @@ surf(xPlane, yPlane, zPlane,'FaceAlpha',0.3,'EdgeColor','none');
 colormap('abyss');
 
 xlabel('X');ylabel('Y');zlabel('Z');
-title('Fitting Plane of the ROIs');
+%title('Fitting Plane of the ROIs');
 grid on;
 axis equal;
-legend('Data Points','Fitting Plane');
+xlabel('Original X (μm)')
+xticks(0:100:500)
+ylabel('Original Y (μm)')
+yticks(0:100:500)
+zlabel('Depth (μm)')
+zticks(10:50:140)
+zticklabels({'360','400','440'})
+set(gca,'ZDir','reverse')
+set(gca,'Fontsize',16)
+%legend('Data Points','Fitting Plane');
 view(3);
+grid off
+set(gca,'FontSize',20)
 hold off;
 
 %display the normal vector and the angles with the x,y,z axis
