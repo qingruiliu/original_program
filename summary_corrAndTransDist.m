@@ -284,10 +284,10 @@ diffRealCorrBin10_40 = mean(realCorrBin10) - mean(realCorrBin40);
 
 figure;
 histogram(diffSurro10_20,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_<_1_0 _u_m - CC_1_0_-_2_0 _u_m');
+xlabel('CC_<_1_0 _µ_m - CC_1_0_-_2_0 _µ_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.1])
-ylim([0 200])
+ylim([0 150])
 hold on
 xline(diffRealCorrBin10_20,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
 hold off
@@ -295,10 +295,10 @@ set(gca,'FontSize',16)
 
 figure;
 histogram(diffSurro10_30,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_<_1_0 _u_m - CC_2_0_-_3_0 _u_m');
+xlabel('CC_<_1_0 _µ_m - CC_2_0_-_3_0 _µ_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.1])
-ylim([0 200])
+ylim([0 150])
 hold on
 xline(diffRealCorrBin10_30,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
 hold off
@@ -306,10 +306,10 @@ set(gca,'FontSize',16)
 
 figure;
 histogram(diffSurro10_40,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_<_1_0 _u_m - CC_3_0_-_4_0 _u_m');
+xlabel('CC_<_1_0 _µ_m - CC_3_0_-_4_0 _µ_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.1])
-ylim([0 200])
+ylim([0 150])
 hold on 
 xline(diffRealCorrBin10_40,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
 hold off
@@ -326,10 +326,10 @@ realCorrBin30_40 = mean(realCorrBin30) - mean(realCorrBin40);
 
 figure;
 histogram(diffSurro20_30,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_1_0_-_2_0 _u_m - CC_2_0_-_3_0 _u_m');
+xlabel('CC_1_0_-_2_0 _µ_m - CC_2_0_-_3_0 _µ_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.05])
-ylim([0 200])
+ylim([0 150])
 hold on
 xline(realCorrBin20_30,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
 hold off
@@ -337,10 +337,10 @@ set(gca,'FontSize',16)
 
 figure;
 histogram(diffSurro20_40,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_1_0_-_2_0 _u_m - CC_3_0_-_4_0 _u_m');
+xlabel('CC_1_0_-_2_0 _µ_m - CC_3_0_-_4_0 _µ_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.05])
-ylim([0 200])
+ylim([0 150])
 hold on
 xline(realCorrBin20_40,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
 hold off
@@ -348,10 +348,10 @@ set(gca,'FontSize',16)
 
 figure;
 histogram(diffSurro30_40,20,'FaceColor',[0.8 0.8 0.8]);
-xlabel('CC_2_0_-_3_0 _u_m - CC_3_0_-_4_0 _u_m');
+xlabel('CC_2_0_-_3_0 _µ_m - CC_3_0_-_4_0 _µ_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.05])
-ylim([0 200])
+ylim([0 150])
 hold on
 xline(realCorrBin30_40,'-','Color',[0.7 0.1 0.1],'LineWidth',2);
 hold off
