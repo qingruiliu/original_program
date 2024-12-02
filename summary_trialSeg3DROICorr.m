@@ -1,39 +1,42 @@
 %% load the ROISegTraceTable from 3 animals
 % %M3
-% disp('----------choose the ROISegTraceTable.mat of the 1st animal(M3)----------')
-% [fileName,path] = uigetfile('ROISegTrace*.mat');
-% cd(path)
-% load(fileName)
-% ROISegTraceTable_M3 = ROISegTraceTable;
+disp('----------choose the ROISegTraceTable.mat of the 1st animal(M3)----------')
+[fileName,path] = uigetfile('ROISegTrace*.mat');
+cd(path)
+load(fileName)
+ROISegTraceTable_M3 = ROISegTraceTable;
 % 
 % %M9
-% disp('----------choose the ROISegTraceTable.mat of the 2nd animal(M9)----------')
-% [fileName,path] = uigetfile('ROISegTrace*.mat');
-% cd(path)
-% load(fileName)
-% ROISegTraceTable_M9 = ROISegTraceTable;
-% 
+disp('----------choose the ROISegTraceTable.mat of the 2nd animal(M9)----------')
+[fileName,path] = uigetfile('ROISegTrace*.mat');
+cd(path)
+load(fileName)
+ROISegTraceTable_M9 = ROISegTraceTable;
+
 % %M17
-% disp('----------choose the ROISegTraceTable.mat of the 3rd animal(M17)----------')
-% [fileName,path] = uigetfile('ROISegTrace*.mat');
-% cd(path)
-% load(fileName)
-% ROISegTraceTable_M17 = ROISegTraceTable;
+disp('----------choose the ROISegTraceTable.mat of the 3rd animal(M17)----------')
+[fileName,path] = uigetfile('ROISegTrace*.mat');
+cd(path)
+load(fileName)
+ROISegTraceTable_M17 = ROISegTraceTable;
 
 %% start analysis
 clearvars -except ROISegTraceTable_*
 %ask for the important parameter settings
 dlgTitle = 'Set the threshold parameters';
-promptPara = {'Set the CC threshold','Set the spatial distance threshold'};
-fieldSize = [1 100;1 100];
-defInput = {'0.5','20'};
+promptPara = {'Set the CC threshold',...
+              'Set the spatial distance threshold',...
+              'Set the contrast level to process (%)',...
+              'Set the result flag to process (1:Hit, 2:Miss, 3:FA, 4:CR)'};
+fieldSize = [1 100;1 100;1 100;1 100];
+defInput = {'0.5','20','100','1'};
 thresholds = inputdlg(promptPara,dlgTitle,fieldSize,defInput);
 
 ccThreshold = str2double(thresholds{1});
 spatialThreshold = str2double(thresholds{2});
 
-contrastLevel = 0.001; % 
-behavioralResult = 2; %Hit trial only
+contrastLevel = str2double(thresholds{3})/100;
+behavioralResult = str2double(thresholds{4});
 switch behavioralResult
     case 1  % 1: Hit
         plotColor = [0.25 0.8 0.25];
@@ -104,7 +107,7 @@ end
 % ylabel('Correlation Coefficient of ROI pairs');          %add the y-axis label
 % set(gca,'FontSize',16)
 
-%% 
+%
 % Analysis for M9
 ROINum_M9 = height(ROISegTraceTable_M9);
 ROINum_M9_100HitTrace = cell(ROINum_M9,1); %store the hit trace of each ROI in M9
@@ -139,7 +142,7 @@ for i = 1:size(pairs_M9,1)
     hitCorrAndDist_M9(i,3) = norm(hitCenterMat_M9{i,1} - hitCenterMat_M9{i,2}); %3rd column: XYZ spatial distance
 end
 
-%% Analysis for M17
+% Analysis for M17
 ROINum_M17 = height(ROISegTraceTable_M17);
 ROINum_M17_100HitTrace = cell(ROINum_M17,1); %store the hit trace of each ROI in M17
 
