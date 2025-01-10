@@ -29,7 +29,7 @@ promptPara = {'Set the CC threshold',...
               'Set the contrast level to process (%)',...
               'Set the result flag to process (1:Hit, 2:Miss, 3:FA, 4:CR)'};
 fieldSize = [1 100;1 100;1 100;1 100];
-defInput = {'0.5','20','100','1'};
+defInput = {'1','20','100','1'};
 thresholds = inputdlg(promptPara,dlgTitle,fieldSize,defInput);
 
 ccThreshold = str2double(thresholds{1});
@@ -176,7 +176,7 @@ for i = 1:size(pairs_M17,1)
     hitCorrAndDist_M17(i,3) = norm(hitCenterMat_M17{i,1} - hitCenterMat_M17{i,2}); %3rd column: XYZ spatial distance
 end
 
-%% summary the results of 3 animals
+% summary the results of 3 animals
 
 hitCorrAndDist_all = [hitCorrAndDist_M3;hitCorrAndDist_M9;hitCorrAndDist_M17]; %combine the results of 3 animals    
 
@@ -192,7 +192,7 @@ ylim([-0.03 0.25]);
 yticks(0:0.05:0.25);
 
 %scatter(hitCorrAndDist_all(:,2),hitCorrAndDist_all(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
-title('CC and tangential Distance of ROIs in 3 mice'); %add the title
+%title('CC and tangential Distance of ROIs in 3 mice'); %add the title
 set(gca,'FontSize',16)
 %plot the average correlation coefficient of ROIs with the different distance bin
 distanceBin = 0:5:max(hitCorrAndDist_all(:,2));       %create the distance bin
@@ -261,7 +261,7 @@ parfor i = 1:surrogateTimes
     hitSurroMat(:, :, i) = [hitCorrSurro_M3; hitCorrSurro_M9; hitCorrSurro_M17];
 end
 close(wb)
-%% plot the surrogate data with the actual data figure
+% plot the surrogate data with the actual data figure
 
 surrodistanceBin = 0:5:600;                          %create the distance bin
 surrocorrBin = zeros(surrogateTimes,length(surrodistanceBin)-1);       %create a vector to store the average correlation coefficient of each distance bin
@@ -272,14 +272,14 @@ for i = 1:surrogateTimes
 
     tempSurroMat = hitSurroMat(:,:,i);
     tempSurroMat = tempSurroMat(tempSurroMat(:,3) > spatialThreshold,:);   %exclude the cell pair with xyz distance less than 30
-    tempSurroMat =tempSurroMat(tempSurroMat(:,1) <= ccThreshold,:);  %exclude the cell pair with more than 0.5 CC
+    %tempSurroMat =tempSurroMat(tempSurroMat(:,1) <= ccThreshold,:);  %exclude the cell pair with more than 0.5 CC
     %tempSurroMat(1:2:end,:) = [];                            %delete all the odd rows
 
     for j = 1 : length(surrodistanceBin)-1
         tempIdx = find(tempSurroMat(:,2) >= surrodistanceBin(j) & tempSurroMat(:,2) < surrodistanceBin(j+1)); %find the index of the correlation coefficient in the distance bin
         surrocorrBin(i,j) = mean(tempSurroMat(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
     end
-    plot(surrodistanceBin(1:end-1)+2.5,surrocorrBin(i,:),'Color',[0.5 0.5 0.5 0.2],'LineWidth',2);  %plot the average correlation coefficient of the distance bin
+    plot(surrodistanceBin(1:end-1)+2.5,surrocorrBin(i,:),'Color',[0.6 0.6 0.6 0.2],'LineWidth',2);  %plot the average correlation coefficient of the distance bin
 end
 close(wb2)
 
@@ -294,11 +294,10 @@ plot(surrodistanceBin(1:end-1)+2.5,surroLowerBound,'k--','LineWidth',1); %plot t
 %plot the mean of the surrogate data
 surroMean = mean(surrocorrBin,1); %calculate the mean of the surrogate data
 plot(surrodistanceBin(1:end-1),surroMean,'k','LineWidth',1.5); %plot the mean of the surrogate data
-%plot(distanceBin(1:end-1)+2.5,corrBin,'Color',[0.1 0.7 0.1],'LineWidth',4);  %plot the average correlation coefficient of the distance bin
+plot(distanceBin(1:end-1)+2.5,corrBin,'Color',plotColor,'LineWidth',4);  %plot the average correlation coefficient of the distance bin
 hold off
 
 %% make the bin plot of the surrogate distribution and the real data
-
 surroBin10 = surrocorrBin(:,find(distanceBin <= 10)); %get the surrogate data <10 um bins
 surroBin20 = surrocorrBin(:,find(distanceBin > 10 & distanceBin <= 20 )); 
 surroBin30 = surrocorrBin(:,find(distanceBin > 20 & distanceBin <= 30 )); 
@@ -335,16 +334,18 @@ xline(diffRealCorrBin10_20,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
 hold off
 set(gca,'FontSize',16)
 
+% use <10- 20-30 as the inlet of the plotting figure
 figure;
 histogram(diffSurro10_30,20,'FaceColor',[0.8 0.8 0.8]);
 xlabel('CC_<_1_0 _u_m - CC_2_0_-_3_0 _u_m');
 ylabel('Number of Surrogates');
-xlim([-0.02 0.1])
+xlim([-0.02 0.2])
 ylim([0 200])
 hold on
 xline(diffRealCorrBin10_30,'-','Color',[0.1 0.7 0.1],'LineWidth',2);
 hold off
 set(gca,'FontSize',16)
+
 
 figure;
 histogram(diffSurro10_40,20,'FaceColor',[0.8 0.8 0.8]);
@@ -398,3 +399,20 @@ hold on
 xline(realCorrBin30_40,'-','Color',[0.7 0.1 0.1],'LineWidth',2);
 hold off
 set(gca,'FontSize',16)
+
+%% plot inset in the figure 
+hold on
+inset_pos = [0.6 0.6 0.3 0.3]; %inset position
+inset_axes = axes('position',inset_pos); %create the inset axes
+
+histogram(diffSurro20_30,20,'FaceColor',[0.8 0.8 0.8]);
+xlabel('CC_1_0_-_2_0 _µ_m - CC_2_0_-_3_0 _µ_m');
+ylabel('Number of Surrogates');
+xlim([-0.02 0.05])
+ylim([0 200])
+hold on
+twoTailP = mean(diffSurro20_30 >= realCorrBin20_30);
+xline(realCorrBin20_30,'-',{num2str(twoTailP)},'Color',plotColor,'LineWidth',2);
+hold off
+set(gca,'FontSize',12)
+print('1_Miss', '-depsc', '-painters');

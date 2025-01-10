@@ -177,10 +177,10 @@ scatter(3*ones(size1,1),mean(surroData1,2),10,[0.7 0.7 0.7],'filled','jitter','o
 scatter(4*ones(size01,1),mean(surroData01,2),10,[0.7 0.7 0.7],'filled','jitter','on','jitterAmount',0.1)
 
 %plot the mean of real data as a bar
-scatter(1,mean(temp_100(:,1)),80,crColor,'filled')
-scatter(2,mean(temp_10(:,1)),80,crColor,'filled') %'MarkerFaceAlpha',0.8,'MarkerEdgeAlpha',0.8
-scatter(3,mean(temp_1(:,1)),80,crColor,'filled')
-scatter(4,mean(temp_01(:,1)),80,crColor,'filled')
+scatter(1,mean(temp_100(:,1)),80,hitColor,'filled')
+scatter(2,mean(temp_10(:,1)),80,hitColor,'filled') %'MarkerFaceAlpha',0.8,'MarkerEdgeAlpha',0.8
+scatter(3,mean(temp_1(:,1)),80,hitColor,'filled')
+scatter(4,mean(temp_01(:,1)),80,fColor,'filled')
 ylim([0.1 0.22])
 yticks(0.1:0.04:0.24)
 set(gca,'FontSize',16)
@@ -189,6 +189,6 @@ set(gca,'TickLength',[0 0])
 ylabel('Average correlation')
 
 %% save the figure as .eps file
-print('low_resultCompare', '-depsc', '-painters');
+print('FA_contrastCompare', '-depsc', '-painters');
 
 

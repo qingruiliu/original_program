@@ -219,7 +219,7 @@ parfor i = 1:surrogateTimes
     surroMat(:, :, i) = [corrSurro_M3; corrSurro_M9; corrSurro_M17];
 end
 close(wb)
-%% plot the surrogate data with the actual data figure
+% plot the surrogate data with the actual data figure
 
 surrodistanceBin = 0:5:600;                          %create the distance bin
 surrocorrBin = zeros(surrogateTimes,length(surrodistanceBin)-1);       %create a vector to store the average correlation coefficient of each distance bin
@@ -230,7 +230,7 @@ for i = 1:surrogateTimes
 
     tempSurroMat = surroMat(:,:,i);
     tempSurroMat = tempSurroMat(tempSurroMat(:,3) > spatialThreshold,:);   %exclude the cell pair with xyz distance less than 30
-    tempSurroMat =tempSurroMat(tempSurroMat(:,1) <= ccThreshold,:);  %exclude the cell pair with more than 0.5 CC
+    %tempSurroMat =tempSurroMat(tempSurroMat(:,1) <= ccThreshold,:);  %exclude the cell pair with more than 0.5 CC
     %tempSurroMat(1:2:end,:) = [];                            %delete all the odd rows
 
     for j = 1 : length(surrodistanceBin)-1
@@ -283,7 +283,7 @@ diffRealCorrBin10_40 = mean(realCorrBin10) - mean(realCorrBin40);
 %plot the histogram of the difference of the mean of the surrogate data
 
 figure;
-histogram(diffSurro10_20,20,'FaceColor',[0.8 0.8 0.8]);
+histogram(diffSurro10_20,20,'FaceColor',[0.8 0.8 0.8],'LineWidth',1.5);
 xlabel('CC_<_1_0 _µ_m - CC_1_0_-_2_0 _µ_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.1])
@@ -294,7 +294,7 @@ hold off
 set(gca,'FontSize',16)
 
 figure;
-histogram(diffSurro10_30,20,'FaceColor',[0.8 0.8 0.8]);
+histogram(diffSurro10_30,20,'FaceColor',[0.8 0.8 0.8],'LineWidth',1.5);
 xlabel('CC_<_1_0 _µ_m - CC_2_0_-_3_0 _µ_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.1])
@@ -325,7 +325,7 @@ realCorrBin20_40 = mean(realCorrBin20) - mean(realCorrBin40);
 realCorrBin30_40 = mean(realCorrBin30) - mean(realCorrBin40);
 
 figure;
-histogram(diffSurro20_30,20,'FaceColor',[0.8 0.8 0.8]);
+histogram(diffSurro20_30,20,'FaceColor',[0.8 0.8 0.8],'LineWidth',1.5);
 xlabel('CC_1_0_-_2_0 _µ_m - CC_2_0_-_3_0 _µ_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.05])

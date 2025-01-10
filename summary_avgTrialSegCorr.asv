@@ -63,7 +63,7 @@ ROINum_M3_100HitTrace = cell(ROINum_M3,1); %store the hit trace of each ROI in M
 
 for i = 1:ROINum_M3
     tempTraceTable = ROISegTraceTable_M3.Segmented_trace{i,1};   %get the segmented trace table of current ROI
-    tempHitTrace = tempTraceTable.traces(tempTraceTable.trialResult == behavioralResult & tempTraceTable.trialContrast <= contrastLevel,:);  %100% hit trials
+    tempHitTrace = tempTraceTable.traces(tempTraceTable.trialResult == behavioralResult & tempTraceTable.trialContrast == contrastLevel,:);  %100% hit trials
     tempHitTrace1 = cellfun(@(x) x(:,2:3),tempHitTrace,'UniformOutput',false);  %get the 3rd column of each cell
     %interpolate the neuronal activity on a common time axis
     for j = 1:length(tempHitTrace1)
@@ -119,7 +119,7 @@ ROINum_M9_100HitTrace = cell(ROINum_M9,1); %store the hit trace of each ROI in M
 
 for i = 1:ROINum_M9
     tempTraceTable = ROISegTraceTable_M9.Segmented_trace{i,1};   %get the segmented trace table of current ROI
-    tempHitTrace = tempTraceTable.traces(tempTraceTable.trialResult == behavioralResult & tempTraceTable.trialContrast <= contrastLevel,:);  %100% hit trials
+    tempHitTrace = tempTraceTable.traces(tempTraceTable.trialResult == behavioralResult & tempTraceTable.trialContrast == contrastLevel,:);  %100% hit trials
     tempHitTrace = cellfun(@(x) x(:,2:3),tempHitTrace,'UniformOutput',false);  %get the 3rd column of each cell
     %interpolate the neuronal activity on a common time axis
     for j = 1:length(tempHitTrace)
@@ -153,7 +153,7 @@ ROINum_M17_100HitTrace = cell(ROINum_M17,1); %store the hit trace of each ROI in
 
 for i = 1:ROINum_M17
     tempTraceTable = ROISegTraceTable_M17.Segmented_trace{i,1};   %get the segmented trace table of current ROI
-    tempHitTrace = tempTraceTable.traces(tempTraceTable.trialResult == behavioralResult & tempTraceTable.trialContrast <= contrastLevel,:);  %100% hit trials
+    tempHitTrace = tempTraceTable.traces(tempTraceTable.trialResult == behavioralResult & tempTraceTable.trialContrast == contrastLevel,:);  %100% hit trials
     tempHitTrace = cellfun(@(x) x(:,2:3),tempHitTrace,'UniformOutput',false);  %get the 3rd column of each cell
     %interpolate the neuronal activity on a common time axis
     for j = 1:length(tempHitTrace)
@@ -198,8 +198,7 @@ yticks(0:0.05:0.25);
 
 %scatter(hitCorrAndDist_all(:,2),hitCorrAndDist_all(:,1),10,[0.8 0.8 0.8],'Filled'); %plot the scatter plot of correlation coefficient and distance
 %title('CC and tangential Distance of ROIs in 3 mice'); %add the title
-set(gca,'FontSize',22)
-set(gca,'LineWidth',2)
+set(gca,'FontSize',16)
 %plot the average correlation coefficient of ROIs with the different distance bin
 distanceBin = 0:5:max(hitCorrAndDist_all(:,2));       %create the distance bin
 corrBin = zeros(length(distanceBin)-1,1);       %create a vector to store the average correlation coefficient of each distance bin
@@ -207,10 +206,11 @@ for i = 1 : length(distanceBin)-1
     tempIdx = find(hitCorrAndDist_all(:,2) >= distanceBin(i) & hitCorrAndDist_all(:,2) < distanceBin(i+1)); %find the index of the correlation coefficient in the distance bin
     corrBin(i) = mean(hitCorrAndDist_all(tempIdx,1));  %calculate the average correlation coefficient of the distance bin
 end
-plot(distanceBin(1:end-1)+2.5,corrBin,'Color',plotColor,'LineWidth',5);  %plot the average correlation coefficient of the distance bin
+plot(distanceBin(1:end-1)+2.5,corrBin,'Color',plotColor,'LineWidth',4);  %plot the average correlation coefficient of the distance bin
 xlabel('Tangential distance (µm)');     %add the x-axis label
 ylabel('Average correlation');          %add the y-axis label
 
+set(gca,'FontSize',16)
 %% plot the surrogate data on the same figure with actual data
 surrogateTimes = 1000;
 hitSurroMat = zeros(length(pairs_M3) + length(pairs_M9) + length(pairs_M17), 3, surrogateTimes);
@@ -264,7 +264,7 @@ parfor i = 1:surrogateTimes
     hitSurroMat(:, :, i) = [hitCorrSurro_M3; hitCorrSurro_M9; hitCorrSurro_M17];
 end
 close(wb)
-%%  plot the surrogate data with the actual data figure
+% plot the surrogate data with the actual data figure
 
 surrodistanceBin = 0:5:600;                          %create the distance bin
 surrocorrBin = zeros(surrogateTimes,length(surrodistanceBin)-1);       %create a vector to store the average correlation coefficient of each distance bin
@@ -395,7 +395,7 @@ hold off
 set(gca,'FontSize',16)
 
 figure;
-histogram(diffSurro30_40,20,'FaceColor',[0.8 0.8 0.8],'LineWidth',2);
+histogram(diffSurro30_40,20,'FaceColor',[0.8 0.8 0.8]);
 xlabel('CC_2_0_-_3_0 _u_m - CC_3_0_-_4_0 _u_m');
 ylabel('Number of Surrogates');
 xlim([-0.02 0.05])
@@ -410,8 +410,8 @@ hold on
 inset_pos = [0.6 0.6 0.3 0.3]; %inset position
 inset_axes = axes('position',inset_pos); %create the inset axes
 
-histogram(diffSurro10_40,20,'FaceColor',[0.8 0.8 0.8],'LineWidth',1.5);
-xlabel('CC_<_1_0 _µ_m - CC_3_0_-_4_0 _µ_m');
+histogram(diffSurro10_40,20,'FaceColor',[0.8 0.8 0.8]);
+xlabel('CC_<_1_0 _u_m - CC_3_0_-_4_0 _u_m');
 ylabel('Number of Surrogates');
 xlim([-0.05 0.18])
 ylim([0 200])
@@ -419,8 +419,7 @@ hold on
 twoTailP = mean(diffSurro10_40 >= diffRealCorrBin10_40);
 xline(diffRealCorrBin10_40,'-',{num2str(twoTailP)},'Color',plotColor,'LineWidth',2);
 hold off
-set(gca,'FontSize',16)
-set(gca,'LineWidth',1.5)
+set(gca,'FontSize',12)
 titleStr = append(behStr,'_',num2str(contrastLevel*100),'_pairsIn10');
 print(titleStr, '-depsc', '-painters');
 varStr = append('corrAndDist_',titleStr);
