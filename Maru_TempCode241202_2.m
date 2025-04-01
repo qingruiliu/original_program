@@ -1,18 +1,20 @@
-ClmDis=10;
-AdClmDis=30;
-ExDis=20;
-Th=1;
-StartBin=1;
+%% pre-defined parameters
+ClmDis=10;     % in-column pair distance [um]
+AdClmDis=30;   % adjacent-column pair distance [um]
+ExDis=20;      % threshold Euclidean distance [um]
+Th=1;          % threshold for PLV
+StartBin=1;    
 EndBin=20;
 Contrast=[0.001,0.01,0.1,1];
-NTrial=size(SumData(1).Data.Segmented_trace{1,1},1);
+NTrial=size(SumData(1).Data.Segmented_trace{1,1},1); % number of trials
 NAnimal=3;
 NSurr=1000;
 
 NTimePoints=EndBin;
+
 % 時間軸
 Fs = 2.37; % サンプリング周波数 [Hz]
-time = (0:NTimePoints-1) / Fs; % 時間 [s]
+time = (0:NTimePoints-1) / Fs; % time window (about 0~8s)
 
 
 for iAnimal=1:3
@@ -258,5 +260,33 @@ for iResult=1:4
         xlim([min(d)-0.01,max(d)+0.01])
         xlabel('Corr','FontSize',12)
         title(['Result=',num2str(iResult),', Contrast=',num2str(iCont)],'FontSize',15)
+    end
+end
+
+%% 
+figure;
+for iResult=1:4
+    for iCont=1:4
+        d=squeeze(nanmean(SumAveCorrBetTrial(iResult,iCont,:),2));
+        subplot(4,4,(iCont-1)*4+iResult);
+        hist(d(2:end))
+        h=findobj(gca,'Type','patch');
+        set(h,'FaceColor',0.8*[1 1 1]);
+        text(d(1),0,'↓','color',[0 0 1],'FontSize',30,'HorizontalAlignment','center','VerticalAlignment','baseline');
+        %xlim([min(d)-0.01,max(d)+0.01])
+        xlabel('Corr','FontSize',12)
+        title(['Result=',num2str(iResult),', Contrast=',num2str(iCont)],'FontSize',15)
+    end
+end
+
+p3=[];
+for iResult=1:4
+    for iCont=1:4
+        d=squeeze(nanmean(SumAveCorrBetTrial(iResult,iCont,:),2));
+        if isnan(d(1))==0
+            p3(iResult,iCont)=length(find(d(2:end)>=d(1)))/(NSurr-sum(isnan(d(2:end))));
+        else
+            p3(iResult,iCont)=NaN;
+        end
     end
 end

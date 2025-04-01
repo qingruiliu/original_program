@@ -360,6 +360,12 @@ end
 function postCuePeriod(~,~)
 global h
     h.inOrOutRW = -1;  %inOrOutRW value: postCuePeriod -1, RW 1, Visi and ITI 0.
+    if strcmp(h.tLickCounter.Running, 'off')
+        start(h.tLickCounter);
+    else
+        stop(h.tLickCounter); % Stop the timer if it's running
+        start(h.tLickCounter); % Start it again
+    end
     start(h.tLickCounter); 
     h.postCueTime = tic;
     while toc(h.postCueTime) <= 1 
