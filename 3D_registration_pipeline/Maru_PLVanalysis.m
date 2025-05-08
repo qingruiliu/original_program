@@ -1,3 +1,41 @@
+%% pre-assign the data for analysis purpose
+% choose the target data for analysis, multiple selection
+[name,path] = uigetfile('*.mat','Select the data for analysis','MultiSelect','on');
+cd(path)
+fileNames = {'ROISegTraceTable_M3.mat', 'ROISegTraceTable_M9.mat', 'ROISegTraceTable_M17.mat'};
+
+% 预分配结构体数组
+numFiles = numel(fileNames);
+dataStruct(numFiles) = struct('Data', [], 'OriginalFileName', '', 'SucessRate', []);
+
+% 遍历每个文件并存入结构体
+for i = 1:numFiles
+    % 加载 .mat 文件中的数据
+    fileData = load(fileNames{i});
+    
+    % 假设 .mat 文件中包含名为 'tableData' 的表格数据
+    tableField = fieldnames(fileData);
+    dataStruct(i).Data = fileData.(tableField{1}); % 这里假设第一个字段是所需数据
+    
+    % 存储文件名
+    dataStruct(i).OriginalFileName = fileNames{i};
+
+    behData = dataStruct(i).Data.Segmented_trace{1,1};
+    behDataSort = sortrows(behData,{'trialContrast','trialResult'},{'ascend','ascend'});
+    correctRate = zeros(1,4);
+    for j = 1:4
+        correctNum = behDataSort(behDataSort.trialContrast == 10^(j-4),:); 
+        trialMark = correctNum.trialResult;
+        correctRate(j) = sum(mod(trialMark,3) == 1);
+    end
+    dataStruct(i).SucessRate = correctRate/40;
+end
+
+% 查看结果
+SumData = dataStruct;
+%clearvars -except SumData
+
+
 %% pre-defined parameters
 ClmDis=10;     % in-column pair distance [um]
 AdClmDis=30;   % adjacent-column pair distance [um]
@@ -237,6 +275,7 @@ for iResult=1:4
         else
             p2(iResult,iCont)=NaN;
         end
+      
     end
 end
 p2
