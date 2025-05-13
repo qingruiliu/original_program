@@ -22,31 +22,29 @@ ROI3DWithTraceTable = table('size',[length(roiLabels) length(tableTitle)],...
 ROI3DWithTraceTable.ROI3DIdx(:) = 1 : length(roiLabels);
 clearvars tableTitle tableTitleTypes
 
-%%
+%% extract the 3D ROIs and save the filled ROIs to the table
 fillWB = waitbar(0,'0/0','Name','filling the empty ROIs...');
 filledVolume = zeros(size(cellPoseVolume));
 
-for label = 1 : length(roiLabels)
-    wbStr = append(num2str(label), ' / ' ,num2str(length(roiLabels)));
-    waitbar(label/length(roiLabels),fillWB,wbStr);
-    %binary mask for current ROI outline
-    roiMask = double(cellPoseVolume == roiLabels(label));
+for labelIdx = 1: length(roiLabels)
+    wbstr = append(num2str(labelIdx),'/',num2str(length(roiLabels)));
+    waitbar(labelIdx/length(roiLabels),fillWB,wbstr);
 
-    for sliceN = 1 : size(filledVolume,3)
-        filledsliceN = imfill(roiMask(:,:,sliceN),'holes');
-        filledVolume(:,:,sliceN) = filledVolume(:,:,sliceN) + filledsliceN * roiLabels(label);
-    end
-    currentROIFP = double(filledVolume == label);
-    ROI3DWithTraceTable.FP_3D(label) = {currentROIFP};  %save the 3D mask as a 3D matrix of each ROI
+    roiMask = (cellPoseVolume == roiLabels(labelIdx));     % get the current ROI label
+    filledROI = imfill(roiMask,'holes');                   % fill the current ROI
+    filledVolume(filledROI) = roiLabels(labelIdx);         % save the filled ROI to the filledVolume
+    ROI3DWithTraceTable.FP_3D{labelIdx} = filledROI;       % save the filled ROI to the table
 end
+
 close(fillWB)
 
-preview = vol3d('CData',filledVolume,'texture','3D');
+preview = vol3d('CData',filledVolume,'texture','3D'); %preview the filled volume
 view(3);
 
 %% 将每一层保存为用于cellReg的输入，并将每个其中每个3D ROI的序号填入table中
 
 %create coordinate table
+sliceN = size(cellPoseVolume,3);
 tableTitle = {'index','planeN','ROINum','ROIIdxList','ROIfootprints','cellRegInput'};
 tableTitleTypes = {'double','double','double','cell','cell','cell'};
 coordinateTable = table('size',[sliceN length(tableTitle)],...
@@ -55,7 +53,8 @@ coordinateTable.index(:) = 1:sliceN;
 clearvars tableTitle tableTitleTypes  
 
 [~,name,~] = fileparts(fileName);
-startZ = str2double(extractBefore(name,'-'));  %start Z plane number
+%extract the slice number from the file name
+startZ = str2double(regexp(name, '\d{1,3}', 'match', 'once'));  % extract the first 1-3 digit number
 endZ = startZ + sliceN;          %end Z plane number
 
 wb1 = waitbar(0,'0/0','Name','saving the 3D ROI data...');
@@ -70,7 +69,6 @@ for i = 1 : sliceN
     coordinateTable.planeN(i) = startZ+i;  
     coordinateTable.ROINum(i) = nnz(tempROIList);  %exclude zero
     coordinateTable.ROIIdxList(i) = {tempROIList'};
-
     tempCellRegInput = zeros(512,512,length(tempROIList));
     tempCell = cell(length(tempROIList),1);           %save the temp spatial footprint
     
@@ -84,21 +82,21 @@ for i = 1 : sliceN
     coordinateTable.ROIfootprints(i) = {tempCell};
     coordinateTable.cellRegInput(i) = {permute(tempCellRegInput,[3 2 1])};
 end
-close(wb1)
+
 save('coordinateTable.mat','coordinateTable','-v7.3')
 save('ROI3DWithTraceTable.mat','ROI3DWithTraceTable','-v7.3')
-
+close(wb1)
 %% check the result (no problem)
 
-Z50 = filledVolume(:,:,50);
-FPZ50 = coordinateTable.ROIfootprints{50};
-blankImg = zeros(512,512);
-for i = 1 : length(FPZ50)
-    idxMat = FPZ50{i};
-    for j = 1: length(idxMat)
-    blankImg(idxMat(j,1),idxMat(j,2)) = 1;
-    end
-end
+%Z50 = filledVolume(:,:,50);           
+%FPZ50 = coordinateTable.ROIfootprints{50}; % 
+%blankImg = zeros(512,512);
+%for i = 1 : length(FPZ50)
+%    idxMat = FPZ50{i};
+%    for j = 1: length(idxMat)
+%    blankImg(idxMat(j,1),idxMat(j,2)) = 1;
+%    end
+%end
 
 %% save the individual cellReg input as individual .mat file
 questdlg('Please select the folder to save the sliced cellPose ROI','cellReg input saving','OK','OK');
