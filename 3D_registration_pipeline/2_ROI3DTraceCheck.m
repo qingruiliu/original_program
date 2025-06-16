@@ -11,7 +11,7 @@ sessionStr = append('registered_trace_',sessionNum);                            
 
 commonX = 1:1000;    %only plot the first 1000 frames
 
-for i = 91:ROI3DNum  % loop through the 3DROI table
+for i = 1:ROI3DNum  % loop through the 3DROI table
     close(gcf)
     tempStruct = ROI3DWithTraceTable.(sessionStr)(i);       %check registered session2 trace 24.10.31
     f = figure('units','normalized','outerposition',[0 0.5 0.5 0.5]);    %show the new figure at left up corner

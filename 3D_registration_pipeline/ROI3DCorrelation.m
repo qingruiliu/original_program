@@ -117,7 +117,7 @@ wb1 = waitbar(0, 'Indexing the ROI and trace...'); %create a waitbar to show the
 for i = 1 : height(ROI3DWithTraceTable)
     waitbar(i/height(ROI3DWithTraceTable), wb1); %update the waitbar
     ROICorrIdx(i,1) = {i};                       %store the index of ROI
-    tempROI = ROI3DWithTraceTable.S1_registered(i,1); %get the registered struct of current ROI
+    tempROI = ROI3DWithTraceTable.registered_trace_session1(i,1); %get the registered struct of current ROI
 
     if ~isempty(tempROI.selected_Z)             %if the ROI have registered trace label
         selectedIdx =tempROI.selected_Z;        %assign the selected registered trace label
