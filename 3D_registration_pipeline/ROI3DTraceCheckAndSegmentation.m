@@ -12,7 +12,6 @@ sessionStr = append('registered_trace_',sessionNum);
 timeLagM3 = [2.666666 0.9 4.1666666];      %the imaging-behavioral lapse of 3 sessions of M3
 
 tempTimeLag = timeLagM3(str2double(extractAfter(sessionNum,'n')));   %after selection, the lag of current session is selected.
-%% load the timeStamp and behavioral output for segmentation
 disp('--------select ALL the timestamp .txt files of the current session-------------');
 [timeStamps, timeStampPath] = uigetfile('*.txt',  'All Files (*.*)','MultiSelect','on');
 cd(timeStampPath);
@@ -29,6 +28,7 @@ for i = 1:length(timeStamps)
     seg.timeStampTable.(tempStampStr) = tempData;
 end
 seg.timeStampTable{:,:} = seg.timeStampTable{:,:} - seg.timeStampTable.Z0(1);  %make the first frame start from 0
+
 
 %% load the behavioral data 
 disp('---------select the behavioral data of current session-----------------');

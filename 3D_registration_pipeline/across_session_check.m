@@ -204,3 +204,50 @@ for i = 1:length(commonROIs)
     saveas(gcf, saveStr);
     close(gcf); % close the figure after saving
 end
+
+%%  plot the neuronal activity in individual trials based on different result (10% and 100%)
+ROINum = size(neuronMatricesOnResult,1);
+hitTrialHigh = length(find(cell2mat(neuronMatricesOnResult(:,2)) == 1 & cell2mat(neuronMatricesOnResult(:,3)) > 0.1));
+interpTime = -0.5:0.1:8;
+
+for i = 1 : ROINum
+    currentROITrials = neuronMatricesOnResult(:,i+3);
+    figure;
+    titleStr = append('ROI #',num2str(i),'   100% Hit trials');
+    title(titleStr)
+    interpTrace = [];
+    hold on
+    for j = 1 : hitTrialHigh
+        traceTime = currentROITrials{j}(:,2);
+        traceSpk = currentROITrials{j}(:,3);
+        interpZscore = interp1(traceTime,traceSpk,interpTime,'linear','extrap');
+        % Corrected plot command for individual trials:
+        % Use interpTime and interpZscore directly
+        % Changed color to a slightly darker gray and added LineWidth
+        plot(interpTime, interpZscore, 'Color', [0.6,0.6,0.6], 'LineWidth', 0.5);
+        interpTrace = [interpTrace;interpZscore];
+    end
+    meanTrace = mean(interpTrace,1);
+    plot(interpTime,meanTrace,'r','LineWidth',1.5);
+    xlim([-0.5 8]);
+    ylim([-0.2 5]);
+    xline(1,'--','Color',[0 0 0],'LineWidth',1);
+    xline(5,'--','Color',[0 0 0],'LineWidth',1);
+    xregion(0,1,'FaceAlpha',0.2);
+    set(gca,'TickLength',[0 0]);
+    set(gca,'FontSize',14)
+    xlabel('Time (s)');
+    ylabel('Deconvoluted F_F');
+     % dialog box to continue or stop
+    answer = questdlg('Do you want to continue to the next ROI?', ...
+                      'Continue?', ...
+                      'Yes', 'No', 'Yes');
+    if strcmp(answer, 'No')
+        break; % exit the loop if user chooses 'No'
+    end
+    % Save the figure
+    saveStr = append('ROI_', num2str(commonROIs(i)), '_traces.png');
+    saveas(gcf, saveStr);
+    close(gcf); % close the figure after saving
+end
+
