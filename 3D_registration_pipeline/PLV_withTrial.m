@@ -90,7 +90,7 @@ for p = 1:10
     elseif strcmp(out, 'No')
         aligned_pairs_table.R{p} = tempR; % 保存相关系数到表
     end
-    close(gcf);
+    uiwait(gcf);
     trialNum = height(cell1.traces); % 获取trial数量
     % 取前20个trial
     cell1_trace = cell1.traces(1:trialNum);
