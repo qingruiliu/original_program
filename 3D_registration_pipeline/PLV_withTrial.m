@@ -23,7 +23,7 @@ for i = 1:size(transCenter,1)
     for j = i+1:size(transCenter,1)
         dist = norm(center(i,:) - center(j,:));
         tanDist = norm(transCenter(i,1:2) - transCenter(j,1:2));
-        if tanDist <= 20 && dist > 20   % 只保留切向距离小于20且欧氏距离大于20的ROI对
+        if tanDist <= 10 && dist > 20   % 只保留切向距离小于20且欧氏距离大于20的ROI对
             pair_idx1 = [pair_idx1; idx(i)];
             pair_idx2 = [pair_idx2; idx(j)];
             pair_dist = [pair_dist; dist];
@@ -50,9 +50,35 @@ low_cutoff = 0.1;
 high_cutoff = 1.15;
 [b, a] = butter(2, [low_cutoff, high_cutoff] / (fs / 2), 'bandpass');
 
+% 定义绘图函数
+function plot_trials(trial_indices, condition_name, contrast_val_str, roi1, roi2, cell1_interp, cell2_interp)
+    if isempty(trial_indices)
+        fprintf('No trials found for condition: %s\n', condition_name);
+        return;
+    end
+    num_trials_to_plot = length(trial_indices);
+    figure('Name', sprintf('ROI%d-ROI%d Traces: %s', roi1, roi2, condition_name));
+    set(gcf, 'Units', 'normalized', 'OuterPosition', [0 0 1 1]);
+    
+    for i = 1:num_trials_to_plot
+        k = trial_indices(i);
+        subplot(ceil(sqrt(num_trials_to_plot)), ceil(sqrt(num_trials_to_plot)), i);
+        set(gca, 'FontSize', 12);
+        plot(cell1_interp{k}(:,1), cell1_interp{k}(:,2), 'b', 'LineWidth', 1.2); hold on;
+        plot(cell2_interp{k}(:,1), cell2_interp{k}(:,2), 'r', 'LineWidth', 1.2);
+        xlabel('Time (s)', 'FontSize', 14); ylabel('Z-score', 'FontSize', 14);
+        title(['Trial ' num2str(k)], 'FontSize', 14);
+        xlim([-1 8]);
+        xregion([0 1]); %time window of visual stimulation
+        grid off;
+    end
+    sgtitle(sprintf('ROI%d-ROI%d: %s (Contrast: %s)', roi1, roi2, condition_name, contrast_val_str), 'FontSize', 20);
+    uiwait(gcf);
+end
+
 wb = waitbar(0, 'Processing PLV for each pair of ROIs...');
 % 遍历每一对ROI
-for p = 1:10
+for p = 1:num_pairs
     waitbar(p/num_pairs, wb, sprintf('Processing PLV for pair %d of %d', p, num_pairs));
     roi1 = aligned_pairs_table.ROI1(p);
     roi2 = aligned_pairs_table.ROI2(p);
@@ -76,10 +102,11 @@ for p = 1:10
     %plot the scatter plot of two traces
     figure('Name','Signal Contamination Check');
     set(gcf, 'Units', 'normalized', 'OuterPosition', [0 0 1 1]);
+    set(gca, 'FontSize', 20);
     scatter(cell1_totalTrace, cell2_totalTrace, 36, 'filled', 'MarkerFaceColor', [0.2 0.6 0.8], 'MarkerEdgeColor', 'none');
-    xlabel(sprintf('ROI%d Z-score', roi1));
-    ylabel(sprintf('ROI%d Z-score', roi2));
-    title(sprintf('Scatter Plot of ROI%d and ROI%d, R = %s', roi1, roi2,num2str(tempR)),'FontSize', 16);
+    xlabel(sprintf('ROI%d Z-score', roi1), 'FontSize', 20);
+    ylabel(sprintf('ROI%d Z-score', roi2), 'FontSize', 20);
+    title(sprintf('Scatter Plot of ROI%d and ROI%d, R = %s', roi1, roi2,num2str(tempR)), 'FontSize', 20);
 
     % manually assign the result of signal contamination
     out = questdlg('Is there signal contamination in this pair?', ...
@@ -116,29 +143,31 @@ for p = 1:10
         phase_diff = cell1_phase - cell2_phase;
         PLV(i) = abs(mean(exp(1i * phase_diff)));
     end
-    % 可视化插值后的trace（前10个trial）
-    figure('Name',sprintf('ROI%d-ROI%d Interpolated Traces',roi1,roi2));
-    set(gcf, 'Units', 'normalized', 'OuterPosition', [0 0 1 1]);
-    for k = 1:min(10,length(cell1_interp))
-        subplot(5,2,k);
-        plot(cell1_interp{k}(:,1), cell1_interp{k}(:,2), 'b', 'LineWidth', 1.2); hold on;
-        plot(cell2_interp{k}(:,1), cell2_interp{k}(:,2), 'r', 'LineWidth', 1.2);
-        xlabel('Time (s)'); ylabel('Z-score');
-        title(['Trial ' num2str(k)]);
-        xlim([-1 8]);
-        xregion([0 1]); %time window of visual stimulation
-        grid off;
-    end
-    sgtitle(sprintf('ROI%d-ROI%d: Interpolated traces of first 10 trials',roi1,roi2));
-    uiwait(gcf); % 等待用户关闭图形窗口
+    
+    % 获取不同条件下的trial索引
+    result = cell1.trialResult(1:length(PLV));
+    contrast = cell1.trialContrast(1:length(PLV));
+    
+    idx_100_hit = find(result == 1 & contrast == 1);
+    idx_10_hit = find(result == 1 & contrast == 0.1);
+    idx_100_cr = find(result == 4 & contrast == 1); % CR at 100% contrast (FA)
+    idx_10_cr = find(result == 4 & contrast == 0.1); % CR at 10% contrast (FA)
+
+    % 绘制四张图
+    plot_trials(idx_100_hit, '100% Hit', '1', roi1, roi2, cell1_interp, cell2_interp);
+    plot_trials(idx_10_hit, '10% Hit', '0.1', roi1, roi2, cell1_interp, cell2_interp);
+    plot_trials(idx_100_cr, '100% CR', '1', roi1, roi2, cell1_interp, cell2_interp);
+    plot_trials(idx_10_cr, '10% CR', '0.1', roi1, roi2, cell1_interp, cell2_interp);
+
 
     % 可视化PLV动态变化及trial结果
     figure('Name',sprintf('ROI%d-ROI%d PLV',roi1,roi2));
     set(gcf, 'Units', 'normalized', 'OuterPosition', [0 0 1 1]);
+    set(gca, 'FontSize', 20);
     plot(PLV, 'ok-','LineWidth', 1.5);
-    xlabel('Trial Number');
-    ylabel('Phase Locking Value (PLV)');
-    title(sprintf('PLV between ROI%d and ROI%d across Trials',roi1,roi2));
+    xlabel('Trial Number', 'FontSize', 20);
+    ylabel('Phase Locking Value (PLV)', 'FontSize', 20);
+    title(sprintf('PLV between ROI%d and ROI%d across Trials',roi1,roi2), 'FontSize', 20);
     xlim([0 length(PLV)+1]);
     ylim([0 1]);
     box off
@@ -161,7 +190,7 @@ for p = 1:10
             fill([iBar-0.05, iBar+0.05, iBar+0.05, iBar-0.05], [0, 0, max(PLV), max(PLV)], correctRejectColor, 'FaceAlpha', 0.3, 'EdgeColor', 'none');
         end
         % Add text label for contrast
-        text(iBar, max(PLV) + 0.05, num2str(contrast(iBar)), 'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');
+        text(iBar, max(PLV) + 0.05, num2str(contrast(iBar)), 'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontSize', 20);
     end
 
     %将160个trial的PLV结果保存在aligned_pairs_table中，形式为1x3，包括result，contrast和PLV
@@ -172,6 +201,7 @@ for p = 1:10
     % 绘制PLV随contrast变化的分组散点+均值线图（横轴为对数contrast，颜色区分trial结果）
     figure('Name',sprintf('ROI%d-ROI%d PLV by Contrast & Result',roi1,roi2));
     set(gcf, 'Units', 'normalized', 'OuterPosition', [0 0 1 1]);
+    set(gca, 'FontSize', 20);
     hold on;
     result_types = [1 2 3 4];
     result_labels = {'Hit','Miss','FA','CR'};
@@ -201,13 +231,14 @@ for p = 1:10
             'Color', colors(r,:), ...
             'LineWidth',2, ...
             'Marker', markerstyles{r}, ...
-            'MarkerFaceColor',colors(r,:));
+            'MarkerFaceColor',colors(r,:), ...
+            'MarkerSize', 8);
     end
     % 设置X轴为对数分布
-    set(gca, 'XTick', log10(contrast_values), 'XTickLabel', arrayfun(@num2str, contrast_values, 'UniformOutput', false));
-    xlabel('Contrast (log scale)');
-    ylabel('PLV');
-    title(sprintf('PLV vs Contrast (ROI%d-ROI%d, color=result)',roi1,roi2));
+    set(gca, 'XTick', log10(contrast_values), 'XTickLabel', arrayfun(@num2str, contrast_values, 'UniformOutput', false), 'FontSize', 20);
+    xlabel('Contrast (log scale)', 'FontSize', 20);
+    ylabel('PLV', 'FontSize', 20);
+    title(sprintf('PLV vs Contrast (ROI%d-ROI%d, color=result)',roi1,roi2), 'FontSize', 20);
     % 调整图例的颜色
     h = zeros(1,4);
     for r = 1:4
@@ -218,7 +249,7 @@ for p = 1:10
             'LineWidth', 2, ...
             'MarkerSize', 8);
     end
-    legend(h, result_labels, 'Location', 'best');
+    legend(h, result_labels, 'Location', 'best', 'FontSize', 20);
     box off; grid on;
     hold off;
     uiwait(gcf); % 等待用户关闭图形窗口
