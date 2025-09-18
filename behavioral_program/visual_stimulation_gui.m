@@ -75,19 +75,19 @@ pixels_per_degree = pixels_per_cm * cm_per_degree;
 spatialFrequency_cpp = spatialFrequency_cpd / pixels_per_degree;
 
 % Grating parameters
-h.gaborDimPix = max(h.width, h.height) * 1.5; % Large enough to cover screen
+h.gaborDimPix = max(h.width, h.height) + 200; % Make it large enough to cover the screen
+h.sigma = min(h.width, h.height) / 6; % Sigma for Gaussian envelope, creating smooth edges
 h.contrast = 1.0;
+h.aspectRatio = 1.0;
 h.phase = 0;
 h.phasePerFrame = (360 * 1.5) * h.ifi; % Temporal frequency = 1.5 Hz
 
-% Create full-screen sine grating
-h.gratingtex = CreateProceduralSineGrating(h.window, h.gaborDimPix, h.gaborDimPix, [0.5 0.5 0.5 0]);
-
-% Create sinusoidal edge mask (alpha channel)
-[x, y] = meshgrid(linspace(-1,1,h.gaborDimPix), linspace(-1,1,h.gaborDimPix));
-r = sqrt(x.^2 + y.^2);
-mask = 0.5 * (1 + cos(pi*min(r,1))); % 1 at center → 0 at edge
-masktex = Screen('MakeTexture', h.window, cat(3, ones(size(mask))*h.grey, mask*255));
+% Create procedural gabor texture with proper sinusoidal edge gradient
+h.backgroundOffset = [0.5 0.5 0.5 0.0];
+h.disableNorm = 1;
+h.preContrastMultiplier = 0.5;
+h.gabortex = CreateProceduralGabor(h.window, h.gaborDimPix, h.gaborDimPix, [],...
+    h.backgroundOffset, h.disableNorm, h.preContrastMultiplier);
 
 % --- Trial Structure Setup ---
 trial_orientations = repmat(orientations, 1, repeats);
@@ -107,30 +107,35 @@ results.trialLog = cell(totalTrials, 3); % Trial#, Orientation, Timestamp
 results.filename = sprintf('visual_stim_log_%s_%s.mat', mouseID, datestr(now, 'yyyymmdd_HHMMSS'));
 
 % --- Start Experiment ---
-uiwait(msgbox('Press OK to start the experiment.')); % <-- waits for user
-disp('Experiment will start.');
+% Display message in PTB window and wait for keypress
+DrawFormattedText(h.window, 'Press any key to start the experiment.', 'center', 'center', h.white);
+Screen('Flip', h.window);
+KbWait; % Wait for a key press
+Screen('Flip', h.window); % Clear the text and show grey screen
+WaitSecs(0.5); % Brief pause before starting trials
 
 % Main experiment loop
 for trialNum = 1:totalTrials
     currentOrientation = trial_sequence(trialNum);
     fprintf('Trial %d/%d: Orientation = %d degrees\n', trialNum, totalTrials, currentOrientation);
 
+    % Set properties matrix for this trial
+    propertiesMat = [h.phase, spatialFrequency_cpp, h.sigma, h.contrast, h.aspectRatio, 0, 0, 0];
+    
     vbl = Screen('Flip', h.window); 
     startTime = vbl;
     
     while vbl < startTime + stimDuration
-        % Draw drifting sine grating
-        Screen('DrawTexture', h.window, h.gratingtex, [], [], currentOrientation, [], [], [], [], ...
-            [], [h.phase, spatialFrequency_cpp, h.contrast, 0]);
-        
-        % Apply sinusoidal mask (for smooth edges)
-        Screen('DrawTexture', h.window, masktex, [], [], 0);
+        % Draw drifting gabor with sinusoidal edges
+        Screen('DrawTextures', h.window, h.gabortex, [], [], currentOrientation, [], [], [], [],...
+            kPsychDontDoRotation, propertiesMat');
 
         % Flip to the screen
         vbl = Screen('Flip', h.window, vbl + 0.5*h.ifi);
 
         % Update phase for drifting effect
         h.phase = h.phase + h.phasePerFrame;
+        propertiesMat(1) = h.phase;
     end
     
     % Log trial data
