@@ -14,7 +14,7 @@ clear all
 global h 
 PsychDefaultSetup(2);
 %Screen('Preference','ScreenToHead',0,0,1);
-Screen('Preference','ScreenToHead',1,0,2);
+%Screen('Preference','ScreenToHead',1,0,2);
 h.screenNumber = max(Screen('Screens'));
 h.white = WhiteIndex(h.screenNumber);
 h.grey = h.white / 2;
@@ -29,7 +29,8 @@ InitializePsychSound;
 
 %open psych-audio port
 h.sampleF = 48000;
-h.audioHandle = PsychPortAudio('Open',12, 1, 1, h.sampleF, 2);  %use PsychPortAudio('GetDevices') to find steinberg UR12, and change the first number with UR12 number
+device_id = 9;
+h.audioHandle = PsychPortAudio('Open',device_id, 1, 1, h.sampleF, 2);  %use PsychPortAudio('GetDevices') to find steinberg UR12, and change the first number with UR12 number
 PsychPortAudio('Volume', h.audioHandle, 0.02);      %auditory cue volume
 
 %pre-allocate audio buffer
@@ -300,7 +301,7 @@ function updateVbl(~,~)
 end
 
 function countDown(~,~)
- countdownDuration = 180;
+ countdownDuration = 60;
  disp('---------Countdown started...check the mouse and lick spout!!!--------------------')
 
  for remainingSeconds = countdownDuration :-1 :0
