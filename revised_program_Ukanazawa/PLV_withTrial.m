@@ -37,7 +37,7 @@ aligned_pairs_table = table(pair_idx1, pair_idx2, pair_dist, pair_tanDist, ...
 %add another column for saving the pearson R
 aligned_pairs_table.R = cell(height(aligned_pairs_table), 1);
 %add another column for saving the PLV results in cell array
-aligned_pairs_table.PLV = cell(height(aligned_pairs_table), 1);
+aligned_pairs_table.Features = cell(height(aligned_pairs_table), 1);
 
 
 
@@ -125,17 +125,30 @@ for p = 1:num_pairs
     cell1_interp = cell(length(cell1_trace), 1);
     cell2_interp = cell(length(cell2_trace), 1);
     PLV = zeros(length(cell1_trace), 1);
+    TrialCorr = zeros(length(cell1_trace), 1);   
+
     for i = 1:length(cell1_trace)
         min_time = min([cell1_trace{i}(:, 2); cell2_trace{i}(:, 2)]);
         max_time = max([cell1_trace{i}(:, 2); cell2_trace{i}(:, 2)]);
         common_axis = min_time:dt:max_time;
         cell1_interp{i} = [common_axis', interp1(cell1_trace{i}(:, 2), cell1_trace{i}(:, 3), common_axis, 'linear', 'extrap')'];
         cell2_interp{i} = [common_axis', interp1(cell2_trace{i}(:, 2), cell2_trace{i}(:, 3), common_axis, 'linear', 'extrap')'];
-        % 滤波
+
+        %=== new variable ===%
+        % 分析窗口
+        analysis_window = cell1_interp{i}(:, 1) >= -0.5 & cell1_interp{i}(:, 1) <= 5;
+        trace1_window = cell1_interp{i}(analysis_window, 2); % 使用未滤波的Z-score
+        trace2_window = cell2_interp{i}(analysis_window, 2);
+        if length(trace1_window) > 1 && length(trace2_window) > 1 && ~any(isnan(trace1_window)) && ~any(isnan(trace2_window))
+            corr_matrix = corrcoef(trace1_window, trace2_window);
+            TrialCorr(i) = corr_matrix(1, 2);
+        else
+            TrialCorr(i) = NaN;
+        end
+
+        % === old PLV method ===
         cell1_interp{i}(:, 3) = filtfilt(b, a, cell1_interp{i}(:, 2));
         cell2_interp{i}(:, 3) = filtfilt(b, a, cell2_interp{i}(:, 2));
-        % 分析窗口
-        analysis_window = cell1_interp{i}(:, 1) >= 0 & cell1_interp{i}(:, 1) <= 5;
         % Hilbert变换获取瞬时相位
         cell1_phase = angle(hilbert(cell1_interp{i}(analysis_window, 3)));
         cell2_phase = angle(hilbert(cell2_interp{i}(analysis_window, 3)));
@@ -153,7 +166,7 @@ for p = 1:num_pairs
     idx_100_cr = find(result == 4 & contrast == 1); % CR at 100% contrast (FA)
     idx_10_cr = find(result == 4 & contrast == 0.1); % CR at 10% contrast (FA)
 
-    % 绘制四张图
+    %% 绘制四张图
     plot_trials(idx_100_hit, '100% Hit', '1', roi1, roi2, cell1_interp, cell2_interp);
     plot_trials(idx_10_hit, '10% Hit', '0.1', roi1, roi2, cell1_interp, cell2_interp);
     plot_trials(idx_100_cr, '100% CR', '1', roi1, roi2, cell1_interp, cell2_interp);
@@ -253,6 +266,111 @@ for p = 1:num_pairs
     box off; grid on;
     hold off;
     uiwait(gcf); % 等待用户关闭图形窗口
+
+    % << 修改：将所有特征保存到一个结构化的表中 >>
+    feature_data = table(result, contrast, PLV, TrialCorr, 'VariableNames', {'Result', 'Contrast', 'PLV', 'TrialCorr'});
+    aligned_pairs_table.Features{p} = feature_data; % 保存特征数据到表格中
+
 end
 close(wb);
-% pair_PLV_table为每对ROI的PLV均值和标准差
+disp('Feature extraction completed.');
+
+%% Part 2: Decoding Analysis
+disp('Starting decoding analysis...');
+
+% 1. 准备数据集
+% 从 aligned_pairs_table 中提取所有 trial 的特征和标签
+all_features = [];
+all_labels_decision = [];
+all_labels_contrast = [];
+all_labels_correctness = [];
+
+for p = 1:height(aligned_pairs_table)
+    % 跳过有信号污染或没有数据的对
+    if isempty(aligned_pairs_table.Features{p})
+        continue;
+    end
+    
+    pair_features_table = aligned_pairs_table.Features{p};
+    
+    % 移除包含NaN的行 (例如，相关性无法计算的trial)
+    pair_features_table = rmmissing(pair_features_table);
+    
+    if isempty(pair_features_table)
+        continue;
+    end
+
+    % 选择用于解码的特征。这里我们使用PLV和TrialCorr
+    features_for_this_pair = [pair_features_table.PLV, pair_features_table.TrialCorr];
+    
+    % 获取标签
+    decision_labels = pair_features_table.Result;
+    contrast_labels = pair_features_table.Contrast;
+    
+    % 创建正确性标签 (1 for Correct, 0 for Incorrect)
+    % Hit(1) 和 Correct Reject(4) 是正确的
+    correctness_labels = (decision_labels == 1 | decision_labels == 4);
+
+    % 汇总所有神经元对的数据
+    all_features = [all_features; features_for_this_pair];
+    all_labels_decision = [all_labels_decision; decision_labels];
+    all_labels_contrast = [all_labels_contrast; contrast_labels];
+    all_labels_correctness = [all_labels_correctness; correctness_labels];
+end
+
+if isempty(all_features)
+    disp('No valid data available for decoding. Exiting.');
+    return;
+end
+
+% 2. 训练和评估分类器
+% 示例：解码动物的选择是否正确 (Correct vs. Incorrect)
+disp('Training a model to decode choice correctness...');
+
+% 特征矩阵 X 和 标签向量 Y
+X = all_features; 
+Y = all_labels_correctness;
+
+% 检查是否有足够的数据和类别
+if length(unique(Y)) < 2
+    disp('Not enough classes in the data to perform classification.');
+    return;
+end
+
+% 使用交叉验证来评估模型性能，防止过拟合
+try
+    cv = cvpartition(Y, 'KFold', 10); % 10折交叉验证
+catch ME
+    disp('Could not create cross-validation partition. Not enough data points?');
+    disp(ME.message);
+    return;
+end
+
+% 使用逻辑回归模型 (fitglm) 作为示例
+accuracy_sum = 0;
+for i = 1:cv.NumTestSets
+    trainIdx = cv.training(i);
+    testIdx = cv.test(i);
+    
+    % 训练模型
+    mdl = fitglm(X(trainIdx,:), Y(trainIdx), 'Distribution', 'binomial', 'Link', 'logit');
+    
+    % 预测
+    Y_pred_prob = predict(mdl, X(testIdx,:));
+    Y_pred = Y_pred_prob > 0.5; % 将概率转换为类别 (0或1)
+    
+    % 计算准确率
+    accuracy_sum = accuracy_sum + sum(Y_pred == Y(testIdx)) / length(Y(testIdx));
+end
+
+avg_accuracy = accuracy_sum / cv.NumTestSets;
+fprintf('============================================================\n');
+fprintf('Decoding Result (Correct vs. Incorrect Choice)\n');
+fprintf('Features used: PLV and Trial-by-Trial Correlation\n');
+fprintf('Model: Logistic Regression\n');
+fprintf('Average decoding accuracy (10-fold CV): %.2f%%\n', avg_accuracy * 100);
+fprintf('============================================================\n');
+
+% 提示：您也可以使用MATLAB的 Classification Learner App 来快速尝试多种模型
+% classificationLearner(X, Y);
+disp('To explore other models, type: classificationLearner(X, Y)');
