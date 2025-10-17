@@ -76,8 +76,10 @@ pixels_per_degree = pixels_per_cm * cm_per_degree;
 spatialFrequency_cpp = spatialFrequency_cpd / pixels_per_degree;
 
 % Grating parameters
-h.gaborDimPix = max(h.width, h.height) * 1.5; % Large enough to cover screen
+h.gaborDimPix = max(h.width, h.height) + 200; % Make it large enough to cover the screen
+h.sigma = min(h.width, h.height) / 6; % Sigma for Gaussian envelope, creating smooth edges
 h.contrast = 1.0;
+h.aspectRatio = 1.0;
 h.phase = 0;
 h.phasePerFrame = (360 * 4) * h.ifi; % Temporal frequency = 1.5 Hz
 
@@ -109,14 +111,21 @@ results.trialLog = cell(totalTrials, 3); % Trial#, Orientation, Timestamp
 results.filename = sprintf('visual_stim_log_%s_%s.mat', mouseID, datestr(now, 'yyyymmdd_HHMMSS'));
 
 % --- Start Experiment ---
-uiwait(msgbox('Press OK to start the experiment.')); % <-- waits for user
-disp('Experiment will start.');
+% Display message in PTB window and wait for keypress
+DrawFormattedText(h.window, 'Press any key to start the experiment.', 'center', 'center', h.white);
+Screen('Flip', h.window);
+KbWait; % Wait for a key press
+Screen('Flip', h.window); % Clear the text and show grey screen
+WaitSecs(0.5); % Brief pause before starting trials
 
 % Main experiment loop
 for trialNum = 1:totalTrials
     currentOrientation = trial_sequence(trialNum);
     fprintf('Trial %d/%d: Orientation = %d degrees\n', trialNum, totalTrials, currentOrientation);
 
+    % Set properties matrix for this trial
+    propertiesMat = [h.phase, spatialFrequency_cpp, h.sigma, h.contrast, h.aspectRatio, 0, 0, 0];
+    
     vbl = Screen('Flip', h.window); 
     startTime = vbl;
     h.phase = 0; % Reset phase at start of each stimulus
