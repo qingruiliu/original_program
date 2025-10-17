@@ -14,6 +14,7 @@ clearvars;
 PsychDefaultSetup(2);
 Screen('Preference','SkipSyncTests',0); % Ensure proper sync in real experiments
 h.screenNumber = max(Screen('Screens')); % Use external screen if available
+Screen('Preference', 'ScreenToHead', 1, 0, 2);  % right connection 
 
 h.white = WhiteIndex(h.screenNumber);
 h.grey  = h.white / 2;
@@ -78,16 +79,17 @@ spatialFrequency_cpp = spatialFrequency_cpd / pixels_per_degree;
 h.gaborDimPix = max(h.width, h.height) * 1.5; % Large enough to cover screen
 h.contrast = 1.0;
 h.phase = 0;
-h.phasePerFrame = (360 * 1.5) * h.ifi; % Temporal frequency = 1.5 Hz
+h.phasePerFrame = (360 * 4) * h.ifi; % Temporal frequency = 1.5 Hz
 
 % Create full-screen sine grating
-h.gratingtex = CreateProceduralSineGrating(h.window, h.gaborDimPix, h.gaborDimPix, [0.5 0.5 0.5 0]);
+backgroundColorOffset = [0.5 0.5 0.5 0]; % gray
+h.gratingtex = CreateProceduralSineGrating(h.window, h.gaborDimPix, h.gaborDimPix, backgroundColorOffset);
 
 % Create sinusoidal edge mask (alpha channel)
-[x, y] = meshgrid(linspace(-1,1,h.gaborDimPix), linspace(-1,1,h.gaborDimPix));
-r = sqrt(x.^2 + y.^2);
-mask = 0.5 * (1 + cos(pi*min(r,1))); % 1 at center → 0 at edge
-masktex = Screen('MakeTexture', h.window, cat(3, ones(size(mask))*h.grey, mask*255));
+%[x, y] = meshgrid(linspace(-1,1,h.gaborDimPix), linspace(-1,1,h.gaborDimPix));
+%r = sqrt(x.^2 + y.^2);
+%mask = 0.5 * (1 + cos(pi*min(r,1))); % 1 at center → 0 at edge
+%masktex = Screen('MakeTexture', h.window, cat(3, ones(size(mask))*h.grey, mask*255));
 
 % --- Trial Structure Setup ---
 trial_orientations = repmat(orientations, 1, repeats);
@@ -117,20 +119,21 @@ for trialNum = 1:totalTrials
 
     vbl = Screen('Flip', h.window); 
     startTime = vbl;
+    h.phase = 0; % Reset phase at start of each stimulus
     
     while vbl < startTime + stimDuration
-        % Draw drifting sine grating
-        Screen('DrawTexture', h.window, h.gratingtex, [], [], currentOrientation, [], [], [], [], ...
-            [], [h.phase, spatialFrequency_cpp, h.contrast, 0]);
+        % 修改: 调整目标矩形使纹理居中并足够大
+        % 计算居中的矩形，大小为纹理尺寸
+        centeredRect = CenterRectOnPoint([0 0 h.gaborDimPix h.gaborDimPix], h.width/2, h.height/2);
         
-        % Apply sinusoidal mask (for smooth edges)
-        Screen('DrawTexture', h.window, masktex, [], [], 0);
-
+        % 绘制光栅纹理
+        Screen('DrawTexture', h.window, h.gratingtex, [], centeredRect, currentOrientation, [], [], [], [], [], [h.phase, spatialFrequency_cpp, h.contrast, 1.0]);
+        
         % Flip to the screen
-        vbl = Screen('Flip', h.window, vbl + 0.5*h.ifi);
+        vbl = Screen('Flip', h.window);
 
         % Update phase for drifting effect
-        h.phase = h.phase + h.phasePerFrame;
+        h.phase = mod(h.phase + h.phasePerFrame, 360);
     end
     
     % Log trial data
