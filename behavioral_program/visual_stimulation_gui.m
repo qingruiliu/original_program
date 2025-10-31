@@ -113,7 +113,6 @@ results.filename = sprintf('visual_stim_log_%s_%s.mat', mouseID, timestamp);
 
 % --- 初始化摄像头 ---
 try
-    % 初始化刺激监视摄像头
     h.cam1 = webcam(1);
     h.cam1Available = true;
 catch
@@ -122,7 +121,6 @@ catch
 end
 
 try
-    % 初始化小鼠状态监视摄像头
     h.cam2 = webcam(2);
     h.cam2Available = true;
 catch
@@ -134,18 +132,17 @@ end
 h.monitorFig = figure('Name', 'Experiment Monitor', 'Position', [100, 100, 800, 600], ...
     'MenuBar', 'none', 'ToolBar', 'none', 'NumberTitle', 'off');
 
-% 创建两个摄像头视图面板
+% 摄像头预览（如stage2，直接preview，不在主循环中刷新）
 h.cam1Panel = uipanel('Parent', h.monitorFig, 'Title', 'Back Camera - Stimulus Monitor', ...
     'Position', [0.025, 0.525, 0.45, 0.45], 'FontSize', 12, 'FontWeight', 'bold');
-
 h.cam2Panel = uipanel('Parent', h.monitorFig, 'Title', 'Front Camera - Mouse Monitor', ...
     'Position', [0.525, 0.525, 0.45, 0.45], 'FontSize', 12, 'FontWeight', 'bold');
 
-% 创建摄像头轴
 h.cam1Axes = axes('Parent', h.cam1Panel, 'Position', [0.05, 0.05, 0.9, 0.9]);
 if h.cam1Available
-    h.cam1Image = image(h.cam1Axes, snapshot(h.cam1));
-    axis(h.cam1Axes, 'off');
+    h.cam1Size = str2double(strsplit(h.cam1.Resolution,'x'));
+    h.cam1Image = image(zeros(h.cam1Size),'Parent',h.cam1Axes);
+    preview(h.cam1, h.cam1Image); % 只初始化一次，不在主循环中刷新
 else
     text(h.cam1Axes, 0.5, 0.5, 'Camera 1 not connected', 'HorizontalAlignment', 'center');
     axis(h.cam1Axes, [0 1 0 1]);
@@ -154,8 +151,9 @@ end
 
 h.cam2Axes = axes('Parent', h.cam2Panel, 'Position', [0.05, 0.05, 0.9, 0.9]);
 if h.cam2Available
-    h.cam2Image = image(h.cam2Axes, snapshot(h.cam2));
-    axis(h.cam2Axes, 'off');
+    h.cam2Size = str2double(strsplit(h.cam2.Resolution,'x'));
+    h.cam2Image = image(zeros(h.cam2Size),'Parent',h.cam2Axes);
+    preview(h.cam2, h.cam2Image); % 只初始化一次，不在主循环中刷新
 else
     text(h.cam2Axes, 0.5, 0.5, 'Camera 2 not connected', 'HorizontalAlignment', 'center');
     axis(h.cam2Axes, [0 1 0 1]);
@@ -194,11 +192,19 @@ ylim(h.progressBar, [0 1]);
 set(h.progressBar, 'YTick', [], 'XTick', [0 0.25 0.5 0.75 1], ...
     'XTickLabel', {'0%', '25%', '50%', '75%', '100%'});
 
-% 创建更新监视器的函数句柄
-h.updateMonitor = @(trialNum, orientation, state, timeElapsed, totalProgress) updateMonitorGUI(h, trialNum, totalTrials, orientation, state, timeElapsed, totalProgress);
+% 移除updateMonitor函数句柄的创建，采用stage2的直接更新方式
+% h.updateMonitor = @(trialNum, orientation, state, timeElapsed, totalProgress) updateMonitorGUI(h, trialNum, totalTrials, orientation, state, timeElapsed, totalProgress);
 
-% 预先更新一次GUI
-h.updateMonitor(0, 0, 'READY', 0, 0);
+% 预先更新一次GUI - 直接设置，不调用函数
+try
+    set(h.orientText, 'String', 'Direction: --°');
+    set(h.trialText, 'String', 'Trial: 0 / 0');
+    set(h.statusText, 'String', 'Status: READY', 'Color', 'k');
+    set(h.timeText, 'String', 'Time: 0 s');
+    set(h.progressPatch, 'XData', [0 0 0 0]);
+catch
+    % 忽略GUI更新错误
+end
 drawnow;
 
 % --- Start Experiment ---
@@ -233,9 +239,18 @@ for trialNum = 1:totalTrials
     
     fprintf('Trial %d/%d: Orientation = %d°\n', trialNum, totalTrials, currentOrientation);
     
-    % 更新监视器状态为准备
+    % 完全按照stage2的方式：只在试次开始时更新GUI，然后立即执行视觉刺激
     totalProgress = (trialNum - 1) / totalTrials;
-    h.updateMonitor(trialNum, currentOrientation, 'READY', 0, totalProgress);
+    try
+        set(h.orientText, 'String', sprintf('Direction: %d°', currentOrientation));
+        set(h.trialText, 'String', sprintf('Trial: %d / %d', trialNum, totalTrials));
+        set(h.statusText, 'String', 'Status: READY', 'Color', 'k');
+        set(h.timeText, 'String', 'Time: 0 s');
+        set(h.progressPatch, 'XData', [0 totalProgress totalProgress 0]);
+        % 不调用drawnow，让GUI自然刷新，就像stage2一样
+    catch
+        % 忽略GUI更新错误
+    end
     
     % 使用与stage2相同的VBL更新方式
     vbl = Screen('Flip', h.window);
@@ -245,139 +260,106 @@ for trialNum = 1:totalTrials
     % 重置相位（与stage2类似）
     h.propertiesMat(1) = 0;
     
-    % 减少GUI更新频率的计数器
-    guiUpdateCounter = 0;
-    
-    % 刺激呈现循环 - 使用与stage2相同的方式
+    % 刺激呈现循环 - 不做摄像头刷新，最大限度减少延迟
     while vbl - vblt0 <= stimDuration
-        % 每10帧更新一次GUI以减少卡顿
-        guiUpdateCounter = guiUpdateCounter + 1;
-        if mod(guiUpdateCounter, 10) == 1
-            timeElapsed = round(vbl - vblt0);
-            h.updateMonitor(trialNum, currentOrientation, 'STIMULUS', timeElapsed, totalProgress + (timeElapsed/stimDuration)/totalTrials/2);
-        end
-        
-        % 使用与stage2相同的绘制方式
         Screen('DrawTexture', h.window, h.gratingtex, [], [], displayOrientation, [], [], [], [],...
             kPsychDontDoRotation, h.propertiesMat');
-        
-        % 使用与stage2相同的翻转时序
         vbl = Screen('Flip', h.window, vbl + (h.waitframes - 0.5) * h.ifi);
-        
-        % 使用与stage2相同的相位更新
         h.propertiesMat(1) = h.propertiesMat(1) + h.phasePerFrame;
+        % 不做drawnow或摄像头刷新
+    end
+    
+    % 刺激结束后简单更新状态，不调用drawnow
+    try
+        set(h.statusText, 'String', 'Status: STIMULUS Complete', 'Color', 'g');
+    catch
+        % 忽略GUI更新错误
     end
     
     % Log trial data - 保存相对于实验开始时间的时间戳（秒）
     results.trialLog{trialNum, 1} = trialNum;
     results.trialLog{trialNum, 2} = currentOrientation;
-    results.trialLog{trialNum, 3} = round(startTime - experimentStartTime, 4); % 保留4位小数的相对时间
+    results.trialLog{trialNum, 3} = round(startTime - experimentStartTime, 4);
 
     % --- Inter-Stimulus Interval (ISI) ---
     fprintf('ISI period for %f seconds...\n', isiDuration);
     
     % 间隔开始时间
-    isiStartTime = Screen('Flip', h.window); % Show grey screen
+    isiStartTime = Screen('Flip', h.window);
     
-    % 间隔期间减少更新频率
-    lastUpdateTime = 0;
-    while GetSecs < isiStartTime + isiDuration
-        currentTime = GetSecs - isiStartTime;
-        % 每秒更新一次GUI
-        if floor(currentTime) > lastUpdateTime
-            timeElapsed = floor(currentTime);
-            currentProgress = totalProgress + 0.5/totalTrials + (timeElapsed/isiDuration)/totalTrials/2;
-            h.updateMonitor(trialNum, currentOrientation, 'INTERVAL', timeElapsed, currentProgress);
-            lastUpdateTime = floor(currentTime);
-        end
-        WaitSecs(0.1);  % 使用WaitSecs而不是pause以减少系统负载
+    % ISI期间简单更新状态，不调用drawnow
+    try
+        set(h.statusText, 'String', 'Status: INTERVAL', 'Color', 'b');
+    catch
+        % 忽略GUI更新错误
     end
     
-    % Save results incrementally
-    save(results.filename, 'results');
+    % 使用简单的等待，像stage2一样
+    while GetSecs < isiStartTime + isiDuration
+        WaitSecs(0.1);
+    end
+    
+    % ISI结束后更新进度条，不调用drawnow
+    try
+        currentProgress = trialNum / totalTrials;
+        set(h.progressPatch, 'XData', [0 currentProgress currentProgress 0]);
+    catch
+        % 忽略GUI更新错误
+    end
+    
+    % 在ISI结束后，利用试次间隙进行数据保存，避免影响时序
+    % 每20个试次保存一次数据，减少I/O操作频率
+    if mod(trialNum, 20) == 0
+        try
+            save(results.filename, 'results');
+            fprintf('Data saved at trial %d\n', trialNum);
+        catch ME
+            warning('Failed to save data at trial %d: %s', trialNum, ME.message);
+        end
+    end
 end
 
 % --- End of Experiment ---
-h.updateMonitor(totalTrials, 0, '实验完成', 0, 1);
+try
+    set(h.statusText, 'String', 'Status: Experiment Finished', 'Color', 'g');
+    set(h.progressPatch, 'XData', [0 1 1 0]);
+    drawnow;
+catch
+    % 忽略GUI更新错误
+end
 
-%DrawFormattedText(h.window, 'Experiment finished!', 'center', 'center', h.white);
 Screen('Flip', h.window);
-WaitSecs(2);
 
-% 清理摄像头资源
+% 实验结束后关闭摄像头（如stage2）
 if h.cam1Available
+    stoppreview(h.cam1);
     clear h.cam1;
 end
 if h.cam2Available
+    stoppreview(h.cam2);
     clear h.cam2;
 end
+
+% 实验结束后进行最终保存
+try
+    save(results.filename, 'results');
+    fprintf('Final data save completed successfully\n');
+catch ME
+    warning('Final data save failed: %s', ME.message);
+    % 尝试保存到备份文件
+    backup_filename = sprintf('backup_%s', results.filename);
+    try
+        save(backup_filename, 'results');
+        fprintf('Data saved to backup file: %s\n', backup_filename);
+    catch
+        warning('Backup save also failed. Data may be lost.');
+    end
+end
+
+WaitSecs(2);
 
 % Clean up
 sca;
 Priority(0);
 disp('Experiment finished and data saved.');
 fprintf('Results saved to: %s\n', results.filename);
-
-function updateMonitorGUI(h, trialNum, totalTrials, orientation, state, timeElapsed, totalProgress)
-% updateMonitorGUI - Update the experiment monitoring GUI status
-%
-%   Parameters:
-%     h - Handle structure
-%     trialNum - Current trial number
-%     totalTrials - Total number of trials
-%     orientation - Current orientation angle
-%     state - Current state string ('STIMULUS', 'INTERVAL', 'READY')
-%     timeElapsed - Time elapsed in current state (seconds)
-%     totalProgress - Overall progress (0-1)
-
-% 减少摄像头更新频率
-persistent lastCameraUpdate;
-if isempty(lastCameraUpdate)
-    lastCameraUpdate = 0;
-end
-
-currentTime = GetSecs;
-if (currentTime - lastCameraUpdate) > 0.1  % 每100ms更新一次摄像头
-    % Update camera images
-    if isfield(h, 'cam1Available') && h.cam1Available && isvalid(h.cam1)
-        try
-            img = snapshot(h.cam1);
-            set(h.cam1Image, 'CData', img);
-        catch
-            % If camera errors, do nothing
-        end
-    end
-
-    if isfield(h, 'cam2Available') && h.cam2Available && isvalid(h.cam2)
-        try
-            img = snapshot(h.cam2);
-            set(h.cam2Image, 'CData', img);
-        catch
-            % If camera errors, do nothing
-        end
-    end
-    lastCameraUpdate = currentTime;
-end
-
-% Update status text - 只显示原始角度
-set(h.orientText, 'String', sprintf('Direction: %d°', orientation));
-set(h.trialText, 'String', sprintf('Trial: %d / %d', trialNum, totalTrials));
-set(h.statusText, 'String', sprintf('Status: %s', state));
-set(h.timeText, 'String', sprintf('Time: %d s', timeElapsed));
-
-% Update status color
-switch state
-    case 'STIMULUS'
-        set(h.statusText, 'Color', 'g');
-    case 'INTERVAL'
-        set(h.statusText, 'Color', 'b');
-    otherwise
-        set(h.statusText, 'Color', 'k');
-end
-
-% Update progress bar
-set(h.progressPatch, 'XData', [0 totalProgress totalProgress 0]);
-
-% 使用更高效的刷新方式
-drawnow limitrate nocallbacks; % 限制刷新率并跳过回调以提高性能
-end
