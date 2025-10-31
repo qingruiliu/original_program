@@ -705,13 +705,15 @@ global h
                     else
                         plot(h.trialRaster,round(toc(h.rwTime),3) + 1, h.trialNum,'.r');
                     end
-                    writeDigitalPin(h.a,'D3',1); % Air puff
-                    %pause(0.01); % 确保Arduino命令执行
+                    writeDigitalPin(h.a,'D3',1); % Air puff ON
+                    pause(0.2); % 短暂气泵刺激 - 0.2秒
+                    writeDigitalPin(h.a,'D3',0); % Air puff OFF
+                    pause(0.01); % 确保Arduino命令执行
                     h.FATrialNumber = h.FATrialNumber + 1;
                     h.resultFlag = 3;
                     set(h.FATrialNumUI,'String',num2str(h.FATrialNumber));   
-                    set(h.FACounterUI,'BackgroundColor',[1 0 0]);                                    
-                    start(h.tAirpuff);
+                    set(h.FACounterUI,'BackgroundColor',[1 0 0]);
+                    h.rwLimit = toc(h.rwTime) + 7; % 延长RW时间作为惩罚
                     lickFlag = false; 
                     disp('FA licking! Air puff and time-out starts!')
                else
@@ -776,10 +778,9 @@ end
 
 function airpuffEnd(~,~)
     global h
-    % 确保气泵关闭
+    % 确保气泵关闭（安全回调，主要控制已在pinStatusChanged中完成）
     writeDigitalPin(h.a,'D3',0);
     pause(0.01); % 确保Arduino命令执行
-    h.rwLimit = toc(h.rwTime) + 7; % 延长RW时间作为惩罚
     stop(h.tAirpuff);
 end
 
