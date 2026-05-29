@@ -11,7 +11,7 @@ disp(['Selected file: ', nd2FilePath]);
 
 %load the nd2 file using th Bio-Formats function
 volume = BioformatsImage(name);
-msgStr = append('Size of the loaded nd2 file: ', num2str(volume.width), ' x ', num2str(volume.height), ' x ', num2str(volume.sizeZ), 'pixels');
+msgStr = append('Size of the loaded nd2 file: ', num2str(volume.width), ' x ', num2str(volume.height), ' x ', num2str(volume.sizeZ), 'planes');
 waitfor(msgbox(msgStr, 'Loaded nd2 file size'));
 
 %% create the image stack and save it as a .tif sequence file
@@ -22,8 +22,8 @@ out1 = questdlg('Proceed to extract the volume from the nd2 file?','Volume extra
 exportVolume = zeros(volume.height, volume.width, volume.sizeZ);
 exportVolume = uint16(exportVolume); % convert to uint16 for saving as .tif
 filename = 'exportedVolume.tif';
-tagstruct.ImageLength = size(volume,1);
-tagstruct.ImageWidth = size(volume,2);
+tagstruct.ImageLength = volume.height;
+tagstruct.ImageWidth = volume.width;
 tagstruct.SampleFormat = Tiff.SampleFormat.UInt;
 tagstruct.Photometric = Tiff.Photometric.MinIsBlack;
 tagstruct.BitsPerSample = 16;

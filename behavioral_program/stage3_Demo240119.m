@@ -70,7 +70,7 @@ PsychPortAudio('FillBuffer',h.audioHandle,buffer);
 
 %% start communication
 h.a = arduino("/dev/ttyACM0",'Leonardo','BaudRate',115200);
-h.sensorPin = 'D13';
+h.sensorPin = 'D12';
 h.waterPumpPin = 'D9';
 h.airPumpPin = 'D3'; % 保留stage3的air pump
 
@@ -256,17 +256,17 @@ try
     frontAspect = frontRes(1) / frontRes(2);
 
     % Set UI positions based on aspect ratios (normalized units) - 调整位置以适应新布局
-    backHeight = 0.28;
+    backHeight = 0.25;
     backWidth = backAspect * backHeight;
-    frontHeight = 0.28;
+    frontHeight = 0.25;
     frontWidth = frontAspect * frontHeight;
 
     % Place back camera UI - 调整位置
-    h.backCamUI = axes(f, 'Position', [0.45 0.1 backWidth backHeight]);
+    h.backCamUI = axes(f, 'Position', [0.55 0.1 backWidth backHeight]);
     h.im = image(zeros(backRes(2), backRes(1), 3, 'uint8'), 'Parent', h.backCamUI);
     preview(h.backCam, h.im);
     text(h.backCamUI, 0.5, -0.1, 'Front Camera', 'Units', 'normalized', ...
-        'HorizontalAlignment', 'center', 'FontSize', 12);  % Add label below the image
+        'HorizontalAlignment', 'center', 'FontSize', 14);  % Add label below the image
 
     % Place front camera UI - 调整位置
     h.frontCamUI = axes(f, 'Position', [0.05 0.1 frontWidth frontHeight]);
@@ -274,7 +274,7 @@ try
     h.im2 = image(zeros(frontRes(2), frontRes(1), 3, 'uint8'), 'Parent', h.frontCamUI);
     preview(h.frontCam, h.im2);
     text(h.frontCamUI, 0.5, -0.1, 'Back Camera', 'Units', 'normalized', ...
-        'HorizontalAlignment', 'center', 'FontSize', 12);  % Add label below the image
+        'HorizontalAlignment', 'center', 'FontSize', 14);  % Add label below the image
 catch
     warning('Camera initialization failed. Continuing without cameras.');
 end
@@ -480,7 +480,7 @@ function updateVbl(~,~)
 end
 
 function countDown(~,~)
- countdownDuration = 180; % 保持stage3的3分钟倒计时
+ countdownDuration = 60; % 保持stage3的3分钟倒计时
  disp('---------Countdown started...check the mouse and lick spout!!!--------------------')
 
  for remainingSeconds = countdownDuration :-1 :0

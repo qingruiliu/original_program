@@ -13,6 +13,12 @@ clear all
 %% open the monitor, display the gray color background
 global h 
 PsychDefaultSetup(2);
+Screen('Preference', 'ConserveVRAM', 4096); 
+Screen('Preference', 'VBLTimestampingMode', 4); 
+Screen('Preference', 'SkipSyncTests', 0); 
+Screen('Preference', 'VisualDebugLevel', 0); 
+Screen('Preference', 'SuppressAllWarnings', 1); 
+
 Screen('Preference','ScreenToHead',0,0,1);
 Screen('Preference','ScreenToHead',1,0,2);
 h.screenNumber = max(Screen('Screens'));

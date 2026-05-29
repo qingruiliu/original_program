@@ -13,8 +13,15 @@ clear all
 %% open the monitor, h the gray color background
 global h 
 PsychDefaultSetup(2);
-%Screen('Preference','SkipSyncTests',1);
-%Screen('Preference','ScreenToHead',0,0,1);
+
+% 添加性能优化的Screen偏好设置（来自stage3）
+Screen('Preference', 'ConserveVRAM', 4096); 
+Screen('Preference', 'VBLTimestampingMode', 4); 
+Screen('Preference', 'SkipSyncTests', 0); 
+Screen('Preference', 'VisualDebugLevel', 0); 
+Screen('Preference', 'SuppressAllWarnings', 1); 
+
+Screen('Preference','ScreenToHead',0,0,1);
 Screen('Preference','ScreenToHead',1,0,2);
 h.screenNumber = max(Screen('Screens'));
 h.white = WhiteIndex(h.screenNumber);
@@ -25,12 +32,33 @@ h.ifi = Screen('GetFlipInterval',h.window);
 h.topPriorityLevel = MaxPriority(h.window); 
 Priority(h.topPriorityLevel);
 
+% 预热显卡和优化缓存（来自stage3）
+for i = 1:5
+    Screen('Flip', h.window);
+end
+
 %% initialize sound configuration
 InitializePsychSound;
 
-%open psych-audio port
+%open psych-audio port - 使用stage3的设备查找方式
 h.sampleF = 48000;
-h.audioHandle = PsychPortAudio('Open', 12, 1, 1, h.sampleF, 2);  %use PsychPortAudio('GetDevices') to find UR12, and change the first number with UR12 number
+deviceList = PsychPortAudio('GetDevices');
+
+% find the device ID for the Steinberg UR12（来自stage3）
+device_id = [];
+for i = 1:length(deviceList)
+    if contains(deviceList(i).DeviceName, 'UR12') || contains(deviceList(i).DeviceName, 'Steinberg')
+        device_id = i;
+        disp(['Audio device found with Device ID: ' num2str(device_id)]);
+        break;
+    end
+end
+if isempty(device_id)
+    device_id = 13; % 回退方案
+    warning('Steinberg UR12 device not found. Using fallback device ID: %d', device_id);
+end
+
+h.audioHandle = PsychPortAudio('Open', device_id-1, 1, 1, h.sampleF, 2);
 PsychPortAudio('Volume', h.audioHandle, 0.02);      %auditory cue volume 
 
 %pre-allocate audio buffer
@@ -80,6 +108,10 @@ updateVbl;
 h.waitframes = 1;
 h.phasePerFrame = 5 * pi;  %change the speed of grating moving
 
+% 预计算常用值以提高性能（来自stage3）
+h.halfIfi = 0.5 * h.ifi;
+h.frameAdvance = (h.waitframes - 0.5) * h.ifi;
+
 %% program variables
 nTrial = 160;  %total 150 trials in a block, tar vs nontar is 50/50
 h.tarAndContrastCombo = [h.oriTarget h.contrast(1);...
@@ -95,7 +127,7 @@ h.oriSequence = h.randSeq(:,1);    %the randomized orientation sequence
 h.contrastSequence = h.randSeq(:,2);
 h.licktrial = 1;
 h.lickdata = {};
-h.data1 = zeros(nTrial,7);
+h.data1 = zeros(nTrial,10); % 扩展为10列：trial#, result, lickInRW, lickOutRW, trialTime, correctRate, contrast, targetFlag, totalLicks, firstLickLatency
 
 %trial counters for UI
 h.totalLickTimes = 0;
@@ -106,16 +138,27 @@ h.missTrialNumber = 0;
 h.resultFlag = [];
 h.correctRate = 0;
 
+% Lick rate monitoring variables - 引入stage3的功能
+h.lickRateTimeWindow = 0.1; 
+h.lickRateTimeStep = 0.05; 
+h.trialLickTimes = []; 
+h.lickRateTimeCourse = {}; 
+h.timeAxis = 0:h.lickRateTimeStep:15; % 扩展到15秒
+
+% 热图数据矩阵
+h.lickRateMatrix = zeros(nTrial, length(h.timeAxis));
+h.heatmapHandle = [];
+
 %create random ITI time length ranging from 4 ~ 6s.
 h.ITIperiod = 4 + rand([1 nTrial])*2;
 
 %% UI, waiting for the initialization
 infoUI();
 
-%% UI
+%% UI - 使用stage3的优化UI布局
 screenSize = get(0,'Screensize'); 
 screenSize(3) = screenSize(3)/2;         
-f = figure('Name','trial monitor','Position',screenSize);          %open the lick monitor UI                        
+f = figure('Name','trial monitor','Position',screenSize,'Color',[0.95 0.95 0.95]);          %open the lick monitor UI                        
 
 %total counter UI
  uicontrol(f,'Style','text','Units','normalized',...
@@ -224,12 +267,40 @@ ylim([0 1]);
 ylabel('correct rate');
 hold on
 
-%% open the back camera
-h.backCamUI = axes(f,'Position',[0.55 0.05 0.35 0.35],'Title','Back Camera');
-h.backCam = webcam(1);
-h.backCamSize = str2double(strsplit(h.backCam.Resolution,'x'));
-h.im = image(zeros(h.backCamSize),'Parent',h.backCamUI);
-preview(h.backCam,h.im);
+%% open cameras - 使用stage3的双摄像头功能
+try
+    h.backCam = webcam(1);
+    h.frontCam = webcam(2);
+
+    backRes = str2double(strsplit(h.backCam.Resolution,'x'));
+    frontRes = str2double(strsplit(h.frontCam.Resolution,'x'));
+
+    % Calculate aspect ratios
+    backAspect = backRes(1) / backRes(2);
+    frontAspect = frontRes(1) / frontRes(2);
+
+    % Set UI positions based on aspect ratios
+    backHeight = 0.28;
+    backWidth = backAspect * backHeight;
+    frontHeight = 0.28;
+    frontWidth = frontAspect * frontHeight;
+
+    % Place back camera UI
+    h.backCamUI = axes(f, 'Position', [0.55 0.05 backWidth backHeight]);
+    h.im = image(zeros(backRes(2), backRes(1), 3, 'uint8'), 'Parent', h.backCamUI);
+    preview(h.backCam, h.im);
+    text(h.backCamUI, 0.5, -0.1, 'Front Camera', 'Units', 'normalized', ...
+        'HorizontalAlignment', 'center', 'FontSize', 12);
+
+    % Place front camera UI
+    h.frontCamUI = axes(f, 'Position', [0.1 0.05 frontWidth frontHeight]);
+    h.im2 = image(zeros(frontRes(2), frontRes(1), 3, 'uint8'), 'Parent', h.frontCamUI);
+    preview(h.frontCam, h.im2);
+    text(h.frontCamUI, 0.5, -0.1, 'Back Camera', 'Units', 'normalized', ...
+        'HorizontalAlignment', 'center', 'FontSize', 12);
+catch
+    warning('Camera initialization failed. Continuing without cameras.');
+end
 
 %% define the timers
 h.tLickCounter = timer('ExecutionMode', 'fixedRate', 'Period', 0.01,...
@@ -240,7 +311,10 @@ h.tRefractory = timer('BusyMode','error','TasksToExecute',1,'StartDelay',0.1,...
     'TimerFcn',@(src,event)refEnd);
 h.tAirpuff = timer('BusyMode','error','TasksToExecute',1,'StartDelay',0.2,...
        'TimerFcn',@(src,event)airpuffEnd);
-    %'StartFcn',@(src,event)airpuffStart,...
+
+% 新增：水泵控制专用timer，确保奖励持续时间（来自stage3）
+h.tWaterPump = timer('BusyMode','error','TasksToExecute',1,'StartDelay',0.15,...
+       'TimerFcn',@(src,event)waterPumpEnd);
 
 %% 3 minutes countdown 
 countDown;
@@ -255,7 +329,7 @@ h.lickInRWOneTrial = 0;
 h.earlyTrialNumber = 0; 
 h.trialNum = [];
 h.rwTime = [];
-mLatency = zeros(nTrial,6);   %latency test
+mLatency = zeros(nTrial,10);   % 扩展为10列存储更多时间信息
 %% main loop
 %start(h.tLickCounter);   %start the lick counter
 for trialNum = 1:nTrial
@@ -266,6 +340,7 @@ for trialNum = 1:nTrial
 stop(h.tLickCounter);
 h.outRWCounterSingle = 0;
 h.lickInRWOneTrial = 0;
+h.trialLickTimes = []; % 重置当前trial的lick时间记录
 h.visiOri = h.oriSequence(h.trialNum); 
 h.contrastOfThisTrial = h.contrastSequence(h.trialNum);%index the visi orientation using trial number
 if h.contrastOfThisTrial == 1     %indicator box of contrast trials
@@ -285,9 +360,10 @@ elseif ~h.targetFlag
     set(h.nontargetBox,'Visible','on');
 end
 
+% 记录trial开始的高精度时间戳（来自stage3）
 h.trialGlobalTic = tic;
 disp('------------------new trial-----------------------')
-fprintf('trialNum = %s\n',num2str(trialNum))
+fprintf('trialNum = %s, Target = %d, Contrast = %.3f\n', num2str(trialNum), h.targetFlag, h.contrastOfThisTrial)
 set(h.totalTrialNumUI,'String',num2str(trialNum));
    
   if trialNum > 1 
@@ -316,16 +392,29 @@ set(h.totalTrialNumUI,'String',num2str(trialNum));
     
   latencyTic =tic;
 
+  % 计算lick rate数据（来自stage3）
+  calculateLickRateData(trialNum);
+
   fprintf('In this trial, lick in RW = %s times! ',num2str(h.lickInRWOneTrial));
   fprintf('lick out of RW = %s times! \n',num2str(h.outRWCounterSingle));
   h.correctRate = (h.hitTrialNumber + h.CRTrialNumber) / trialNum;
+  
+  % 扩展数据记录（来自stage3）
   h.data1(trialNum,1) = trialNum;
   h.data1(trialNum,2) = h.resultFlag;   %save the result in the data1 matrix: 1.hit 2.miss 3.FA 4.CR
   h.data1(trialNum,3) = h.lickInRWOneTrial;
   h.data1(trialNum,4) = h.outRWCounterSingle;
-  h.data1(trialNum,5) = round(toc(h.trialGlobalTic),2); %time length for individual trials
-  h.data1(trialNum,6) = round(h.correctRate,2);
+  h.data1(trialNum,5) = round(toc(h.trialGlobalTic),4); %time length for individual trials (高精度)
+  h.data1(trialNum,6) = round(h.correctRate,4);
   h.data1(trialNum,7) = h.contrastOfThisTrial; %contrast of this trial
+  h.data1(trialNum,8) = h.targetFlag; % 记录target/non-target
+  h.data1(trialNum,9) = length(h.trialLickTimes); % 记录总lick次数
+  % 计算第一次lick的latency（如果有lick的话）
+  if ~isempty(h.trialLickTimes)
+      h.data1(trialNum,10) = min(h.trialLickTimes); % 第一次lick相对trial开始的时间
+  else
+      h.data1(trialNum,10) = NaN;
+  end
   
   plot(h.ratePlot,trialNum,h.correctRate,'-ok');
   
@@ -360,6 +449,13 @@ end
 stop(h.tLickCounter);
 delete(h.tLickCounter);
 delete(h.tRefractory);
+delete(h.tAirpuff);
+if exist('h.tWaterPump','var')
+    if strcmp(h.tWaterPump.Running,'on')
+        stop(h.tWaterPump);
+    end
+    delete(h.tWaterPump);
+end
 disp('---------------------finished!---------------')
 totalTime = toc(totalTic);
 totalLickTimes = 0;
@@ -369,9 +465,11 @@ end
 PsychPortAudio('Close',h.audioHandle); %close the audio stimulation port
 fprintf('>> total time cost:  %s minutes %s seconds \n',num2str(floor((totalTime)/60)),num2str(mod(totalTime,60)));
 fprintf('>> total lick times: %s times \n',num2str(h.inRWCounter));
-%h.lickdata
-%h.data1
-save h
+
+% 保存完整数据，包括高精度时间戳（来自stage3）
+savestr = [datestr(now, 'yyyymmdd') '_'  h.mouseID{1} '_stage4_discri.mat'];
+save(savestr, 'h', 'mLatency','f');
+fprintf('data saved as, %s\n', savestr);
 sca
 
 %% functions
@@ -380,7 +478,7 @@ function infoUI(~,~)
  prompt = {'mouseID', 'trainStage', 'dayNumber', 'saveDir'};
  dlgtitle = 'mouse information';
  dims = [1 35];
- definput = {'', '', '', '/Users/liuqr/files/MATLAB相关/code ref/test code'};
+ definput = {'', 'stage4', '', '/home/liu/github/original_program/behavioral_program/data'};
  h.mouseID = inputdlg(prompt, dlgtitle, dims, definput);
 end
 
@@ -391,7 +489,7 @@ function updateVbl(~,~)
 end
 
 function countDown(~,~)
- countdownDuration = 180;
+ countdownDuration = 60;
  disp('---------Countdown started...check the mouse and lick spout!!!--------------------')
 
  for remainingSeconds = countdownDuration :-1 :0
@@ -420,6 +518,7 @@ global h
     end
     h.postCueTime = tic;
     while toc(h.postCueTime) <= 1 
+        WaitSecs(0.001); % 减少CPU占用（来自stage3）
     end
     disp('>>post-cue period finished! Visual stimulation starts!')
 end
@@ -427,16 +526,36 @@ end
 function visiStim(~,~)
   global h
   h.inOrOutRW = 0; 
+  
+  % 使用stage3的优化视觉刺激代码
   h.propertiesMat = [h.phase, h.freq, h.sigma, h.contrastOfThisTrial, h.aspectRatio, 0, 0, 0];
-  updateVbl;
-  VSLength = 1; %visual stimulation in the first second
-  while h.vbl - h.vblt0 <= VSLength
-  Screen('DrawTextures', h.window, h.gabortex, [], [],h.visiOri, [], [], [], [],...
-        kPsychDontDoRotation, h.propertiesMat');
-  h.vbl = Screen('Flip', h.window, h.vbl + (h.waitframes - 0.5) * h.ifi);
-  h.propertiesMat(1) = h.propertiesMat(1) + h.phasePerFrame;
+  Screen('FillRect', h.window, h.grey);
+  vbl = Screen('Flip', h.window);
+  vblt0 = vbl;
+  h.vbl = vbl; h.vblt0 = vblt0; % 为兼容性保留
+  startTime = vbl;
+  
+  h.propertiesMat(1) = 0; % 重置相位
+  
+  VSLength = 1; 
+  frameCount = 0;
+  
+  while (vbl - vblt0) <= VSLength
+    frameCount = frameCount + 1;
+    
+    Screen('DrawTextures', h.window, h.gabortex, [], [], h.visiOri, [], [], [], [],...
+          kPsychDontDoRotation, h.propertiesMat');
+    
+    nextFlipTime = startTime + frameCount * h.ifi;
+    vbl = Screen('Flip', h.window, nextFlipTime - 0.5 * h.ifi);
+    h.vbl = vbl; % 更新全局vbl以兼容lick检测
+    
+    h.propertiesMat(1) = h.propertiesMat(1) + h.phasePerFrame;
   end
-  updateVbl;
+  
+  Screen('FillRect', h.window, h.grey);
+  Screen('Flip', h.window);
+  
   h.inOrOutRW = 1;
   disp('>>Visual stimulation ended!! Response window starts!!')
 end
@@ -447,6 +566,7 @@ global h
  h.rwLimit = 4;
  %h.inOrOutRW = 1;  %set as true when RW starts  
   while toc(h.rwTime) <= h.rwLimit    %the RW last for 4 seconds
+      WaitSecs(0.001); % 减少CPU占用（来自stage3）
   end
   if h.lickInRWOneTrial > 0
       h.licktrial = h.licktrial + 1;
@@ -472,19 +592,31 @@ global h
         end
     end
     h.ITITime = tic;
-    while toc(h.ITITime) <= h.ITIperiod(h.trialNum) %index the randomized ITI period
+    itiDuration = h.ITIperiod(h.trialNum);
+    while toc(h.ITITime) <= itiDuration %index the randomized ITI period
+        WaitSecs(0.01); % 减少CPU占用（来自stage3）
     end
-    fprintf('>> ITI period finished!!! Time length is %s \n',num2str(h.ITIperiod(h.trialNum)))
+    fprintf('>> ITI period finished!!! Time length is %s \n',num2str(itiDuration))
 end
 
 function pinStatusChanged(~,~)
 global h
+    % 安全检查
+    if ~strcmp(h.tLickCounter.Running,'on')
+        return;
+    end
+    
     RWflag = h.inOrOutRW;
     lickFlag = true;
     trialFlag = true;
     lickTimesReporter = 0;
     pinValue = readDigitalPin(h.a,h.sensorPin);
+    
     if pinValue == true && lickFlag == true
+        % 记录高精度lick时间戳（来自stage3）
+        trialElapsedTime = toc(h.trialGlobalTic);
+        h.trialLickTimes = [h.trialLickTimes, trialElapsedTime];
+        
         switch RWflag
             case 1 % RW
                 h.inRWCounter = h.inRWCounter + 1;
@@ -496,7 +628,21 @@ global h
                     else
                         plot(h.trialRaster,round(toc(h.rwTime),3) + 1,h.trialNum,'.g'); 
                     end
-                   writeDigitalPin(h.a,'D9',1);
+                   % 改进的水泵控制 - 确保可靠性（来自stage3）
+                   try
+                       writeDigitalPin(h.a,'D9',0);
+                       pause(0.01);
+                       writeDigitalPin(h.a,'D9',1);
+                       if strcmp(h.tWaterPump.Running,'off')
+                           start(h.tWaterPump);
+                       end
+                       fprintf('Water pump activated for Hit! ');
+                   catch ME
+                       warning('Water pump control error: %s', ME.message);
+                       writeDigitalPin(h.a,'D9',1);
+                       pause(0.15);
+                       writeDigitalPin(h.a,'D9',0);
+                   end
                    h.hitTrialNumber = h.hitTrialNumber + 1; 
                    h.resultFlag = 1;
                    set(h.hitTrialNumUI,'String',num2str(h.hitTrialNumber));
@@ -570,15 +716,29 @@ end
 
 function refStart(~,~)
     global h
-      stop(h.tLickCounter);
-      %disp('timer 1 stopped by timer-2 StartFcn');
-      writeDigitalPin(h.a,'D9',0);
+      if strcmp(h.tLickCounter.Running,'on')
+          stop(h.tLickCounter);
+      end
+      % 确保水泵关闭 - 改进的控制逻辑（来自stage3）
+      try
+          writeDigitalPin(h.a,'D9',0);
+          % 停止水泵timer如果正在运行
+          if strcmp(h.tWaterPump.Running,'on')
+              stop(h.tWaterPump);
+          end
+      catch ME
+          warning('Water pump shutdown error in refStart: %s', ME.message);
+      end
 end
 
 function refEnd(~,~)
     global h
-    start(h.tLickCounter);
-    stop(h.tRefractory);
+    if ~strcmp(h.tLickCounter.Running,'on')
+        start(h.tLickCounter);
+    end
+    if strcmp(h.tRefractory.Running,'on')
+        stop(h.tRefractory);
+    end
 end
 
 function airpuffStart(~,~)
@@ -591,9 +751,51 @@ function airpuffEnd(~,~)
  global h
  writeDigitalPin(h.a,'D3',0);
   h.rwLimit = toc(h.rwTime) + 7;
- % start(h.tLickCounter);
-  % stop(h.tRefractory);
   stop(h.tAirpuff);
+end
+
+function waterPumpEnd(~,~)
+ global h
+ % 水泵专用关闭函数 - 确保可靠关闭（来自stage3）
+ try
+     writeDigitalPin(h.a,'D9',0);
+     fprintf('Water pump deactivated. ');
+ catch ME
+     warning('Water pump deactivation error: %s', ME.message);
+     % 尝试多次关闭
+     for i = 1:3
+         try
+             pause(0.01);
+             writeDigitalPin(h.a,'D9',0);
+             break;
+         catch
+             continue;
+         end
+     end
+ end
+ 
+ if strcmp(h.tWaterPump.Running,'on')
+     stop(h.tWaterPump);
+ end
+end
+
+% 计算lick rate数据（来自stage3）
+function calculateLickRateData(trialNum)
+global h
+    % 计算lick rate数据但不绘制热图
+    lickCount = zeros(size(h.timeAxis));
+    
+    for i = 1:length(h.timeAxis)
+        windowStart = h.timeAxis(i) - h.lickRateTimeWindow/2;
+        windowEnd = h.timeAxis(i) + h.lickRateTimeWindow/2;
+        
+        licksInWindow = sum(h.trialLickTimes >= windowStart & h.trialLickTimes <= windowEnd);
+        lickCount(i) = licksInWindow; 
+    end
+    
+    % 保存数据供后续分析使用
+    h.lickRateTimeCourse{trialNum} = lickCount;
+    h.lickRateMatrix(trialNum, :) = lickCount;
 end
 
 function seq = randomSequence(n, m)
